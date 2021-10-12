@@ -149,9 +149,9 @@ namespace CreateMikLabelModel.ML
                 bool includeFileColumns = true)
             {
                 var existingHeaders =
-                    new string[] { "CombinedID", "ID", "Area", "Title", "Description", "Author", "IsPR", "FilePaths" };
+                    new string[] { "CombinedID", "ID", "Label", "Title", "Description", "Author", "IsPR", "FilePaths" };
                 var headersToKeep =
-                    new string[] { "CombinedID", "ID", "Area", "Title", "Description", "Author", "IsPR" };
+                    new string[] { "CombinedID", "ID", "Label", "Title", "Description", "Author", "IsPR" };
                 var newOnesToAdd =
                     new string[] { "NumMentions", "UserMentions" };
 
@@ -189,8 +189,8 @@ namespace CreateMikLabelModel.ML
                         _sb.Clear();
                         var lineSplitByTab = line.Split("\t");
                         var fromRepo = lineSplitByTab[headerIndices["CombinedID"]].Split(",")[1];
-                        var area = datasetModifier.ReMapLabel(lineSplitByTab[headerIndices["Area"]], fromRepo);
-                        if (string.IsNullOrWhiteSpace(area))
+                        var remappedLabel = datasetModifier.ReMapLabel(lineSplitByTab[headerIndices["Label"]], fromRepo);
+                        if (string.IsNullOrWhiteSpace(remappedLabel))
                         {
                             // the label from archived file is not being used in targetRepo.. can skip this row
                             continue;
@@ -199,7 +199,7 @@ namespace CreateMikLabelModel.ML
                         _sb
                             .Append(lineSplitByTab[headerIndices["CombinedID"]])
                             .Append('\t').Append(lineSplitByTab[headerIndices["ID"]])
-                            .Append('\t').Append(area)
+                            .Append('\t').Append(remappedLabel)
                             .Append('\t').Append(lineSplitByTab[headerIndices["Title"]]);
 
                         body = lineSplitByTab[headerIndices["Description"]];

@@ -11,7 +11,7 @@ namespace Hubbup.MikLabelModel
     public class GitHubIssuePrediction
     {
         [ColumnName("PredictedLabel")]
-        public string Area;
+        public string Label;
 
         public float[] Score;
     }

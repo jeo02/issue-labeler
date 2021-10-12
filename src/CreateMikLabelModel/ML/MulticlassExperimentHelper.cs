@@ -123,7 +123,7 @@ namespace CreateMikLabelModel.ML
         {
             Trace.WriteLine("===== Evaluating model's accuracy with test data =====");
             var predictions = model.Transform(dataView);
-            var metrics = mlContext.MulticlassClassification.Evaluate(predictions, labelColumnName: "Area", scoreColumnName: "Score");
+            var metrics = mlContext.MulticlassClassification.Evaluate(predictions, labelColumnName: "Label", scoreColumnName: "Score");
 
             Trace.WriteLine($"************************************************************");
             Trace.WriteLine($"*    Metrics for {trainerName} multi-class classification model   ");
@@ -159,7 +159,7 @@ namespace CreateMikLabelModel.ML
                 var prEngine = mlContext.Model.CreatePredictionEngine<GitHubPullRequest, GitHubIssuePrediction>(trainedModel);
                 predictions = testData
                    .Select(x => (
-                        knownLabel: x.Area,
+                        knownLabel: x.Label,
                         predictedResult: prEngine.Predict(x),
                         issueNumber: x.ID.ToString()
                    ));
@@ -171,7 +171,7 @@ namespace CreateMikLabelModel.ML
                 var issueEngine = mlContext.Model.CreatePredictionEngine<GitHubIssue, GitHubIssuePrediction>(trainedModel);
                 predictions = testData
                    .Select(x => (
-                        knownLabel: x.Area,
+                        knownLabel: x.Label,
                         predictedResult: issueEngine.Predict(x),
                         issueNumber: x.ID.ToString()
                    ));
@@ -181,22 +181,22 @@ namespace CreateMikLabelModel.ML
                 predictions.Select(x =>
                 (
                     knownLabel: x.knownLabel,
-                    predictedArea: x.predictedResult.Area,
+                    predictedLabel: x.predictedResult.Label,
                     maxScore: x.predictedResult.Score.Max(),
                     confidentInPrediction: x.predictedResult.Score.Max() >= threshold,
                     issueNumber: x.issueNumber
                 ));
 
             var countSuccess = analysis.Where(x =>
-                    (x.confidentInPrediction && x.predictedArea.Equals(x.knownLabel, StringComparison.Ordinal)) ||
-                    (!x.confidentInPrediction && !x.predictedArea.Equals(x.knownLabel, StringComparison.Ordinal))).Count();
+                    (x.confidentInPrediction && x.predictedLabel.Equals(x.knownLabel, StringComparison.Ordinal)) ||
+                    (!x.confidentInPrediction && !x.predictedLabel.Equals(x.knownLabel, StringComparison.Ordinal))).Count();
 
             var missedOpportunity = analysis
-                .Where(x => !x.confidentInPrediction && x.knownLabel.Equals(x.predictedArea, StringComparison.Ordinal)).Count();
+                .Where(x => !x.confidentInPrediction && x.knownLabel.Equals(x.predictedLabel, StringComparison.Ordinal)).Count();
 
             var mistakes = analysis
-                .Where(x => x.confidentInPrediction && !x.knownLabel.Equals(x.predictedArea, StringComparison.Ordinal))
-                .Select(x => new { Pair = $"\tPredicted: {x.predictedArea}, Actual:{x.knownLabel}", IssueNumbers = x.issueNumber, MaxConfidencePercentage = x.maxScore * 100.0f })
+                .Where(x => x.confidentInPrediction && !x.knownLabel.Equals(x.predictedLabel, StringComparison.Ordinal))
+                .Select(x => new { Pair = $"\tPredicted: {x.predictedLabel}, Actual:{x.knownLabel}", IssueNumbers = x.issueNumber, MaxConfidencePercentage = x.maxScore * 100.0f })
                 .GroupBy(x => x.Pair)
                 .Select(x => new
                 {

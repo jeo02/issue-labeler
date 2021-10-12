@@ -30,7 +30,7 @@ namespace Hubbup.MikLabelModel
         {
             var userMentions = issue.Body != null ? _regex.Matches(issue.Body).Select(x => x.Value).ToArray() : new string[0];
 
-            List<LabelAreaScore> labelPredictions;
+            List<ScoredLabel> labelPredictions;
             if (filePaths == null)
             {
                 var aspnetIssue = new GitHubIssue
@@ -75,19 +75,19 @@ namespace Hubbup.MikLabelModel
             };
         }
 
-        public static List<LabelAreaScore> GetBestThreePredictions(float[] scores, VBuffer<ReadOnlyMemory<char>> slotNames)
+        public static List<ScoredLabel> GetBestThreePredictions(float[] scores, VBuffer<ReadOnlyMemory<char>> slotNames)
         {
             var topThreeScores = GetIndexesOfTopScores(scores, 3);
 
-            return new List<LabelAreaScore>
+            return new List<ScoredLabel>
                 {
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[0]).ToString(), Score = scores[topThreeScores[0]] },
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[1]).ToString(), Score = scores[topThreeScores[1]] },
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[2]).ToString(), Score = scores[topThreeScores[2]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[0]).ToString(), Score = scores[topThreeScores[0]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[1]).ToString(), Score = scores[topThreeScores[1]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[2]).ToString(), Score = scores[topThreeScores[2]] },
                 };
         }
 
-        private List<LabelAreaScore> GetBestThreePredictions(GitHubIssuePrediction prediction, bool forPrs)
+        private List<ScoredLabel> GetBestThreePredictions(GitHubIssuePrediction prediction, bool forPrs)
         {
             var scores = prediction.Score;
 
@@ -103,11 +103,11 @@ namespace Hubbup.MikLabelModel
 
             var topThreeScores = GetIndexesOfTopScores(scores, 3);
 
-            return new List<LabelAreaScore>
+            return new List<ScoredLabel>
                 {
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[0]).ToString(), Score = scores[topThreeScores[0]] },
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[1]).ToString(), Score = scores[topThreeScores[1]] },
-                    new LabelAreaScore {LabelName=slotNames.GetItemOrDefault(topThreeScores[2]).ToString(), Score = scores[topThreeScores[2]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[0]).ToString(), Score = scores[topThreeScores[0]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[1]).ToString(), Score = scores[topThreeScores[1]] },
+                    new ScoredLabel {LabelName=slotNames.GetItemOrDefault(topThreeScores[2]).ToString(), Score = scores[topThreeScores[2]] },
                 };
         }
 

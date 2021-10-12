@@ -61,7 +61,7 @@ namespace CreateMikLabelModel.ML
             };
 
             ExperimentTime = 300;
-            LabelColumnName = "Area";
+            LabelColumnName = "Label";
             ForPrs = forPrs;
             Paths = paths;
         }

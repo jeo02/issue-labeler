@@ -66,6 +66,7 @@ namespace CreateMikLabelModel.Models
     public class LabelsNode
     {
         public string Name { get; set; }
+        public string Color { get; set; }
     }
 
     public class PageInfo

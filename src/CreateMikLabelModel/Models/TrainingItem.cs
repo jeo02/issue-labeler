@@ -2,12 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
+using System;
 
-namespace Hubbup.MikLabelModel
+namespace CreateMikLabelModel.Models
 {
-    public class LabelSuggestion
-    {
-        public List<ScoredLabel> LabelScores { get; set; }
-    }
+    public record TrainingItem(DateTimeOffset CreatedAt, int Identifier, string RepositoryName);
 }

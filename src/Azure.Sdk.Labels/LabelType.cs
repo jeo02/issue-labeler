@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace Hubbup.MikLabelModel
+using System;
+
+namespace Azure.Sdk.LabelTrainer
 {
-    public class LabelAreaScore
-    {
-        public string LabelName { get; set; }
-        public float Score { get; set; }
-    }
+    internal record LabelType(string Name, Func<object, bool> FilterPredicate);
 }

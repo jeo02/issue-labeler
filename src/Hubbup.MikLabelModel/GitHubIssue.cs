@@ -17,7 +17,7 @@ namespace Hubbup.MikLabelModel
         public string Owner { get; set; }
         public IReadOnlyList<Issue> Issues { get; set; }
         public int TotalCount { get; set; }
-        public List<Label> AreaLabels { get; set; }
+        public List<Label> LabelsOfInterest { get; set; }
     }
 
     public sealed class RemoteLabelPrediction
@@ -60,7 +60,7 @@ namespace Hubbup.MikLabelModel
     }
     public class LabelScore
     {
-        public LabelAreaScore LabelAreaScore { get; set; }
+        public ScoredLabel ScoredLabel { get; set; }
         public Label Label { get; set; }
     }
     public class GitHubPullRequest : GitHubIssue
@@ -93,7 +93,7 @@ namespace Hubbup.MikLabelModel
         public float ID;
 
         [LoadColumn(2)]
-        public string Area;
+        public string Label;
 
         [LoadColumn(3)]
         public string Title;

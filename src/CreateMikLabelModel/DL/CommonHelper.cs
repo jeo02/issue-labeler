@@ -2,13 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using GraphQL.Client.Http;
-using GraphQL.Client.Serializer.Newtonsoft;
-using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
+using CreateMikLabelModel.Models;
+using GraphQL.Client.Http;
+using GraphQL.Client.Serializer.Newtonsoft;
 
 namespace CreateMikLabelModel.DL.Common
 {
@@ -20,25 +20,9 @@ namespace CreateMikLabelModel.DL.Common
 
     public static class CommonHelper
     {
-        public static string GetGitHubAuthToken()
-        {
-            const string UserSecretKey = "GitHubAccessToken";
-
-            var config = new ConfigurationBuilder()
-                .AddUserSecrets("AspNetHello.App")
-                .Build();
-
-            var gitHubAccessToken = config[UserSecretKey];
-            if (string.IsNullOrEmpty(gitHubAccessToken))
-            {
-                throw new InvalidOperationException($"Couldn't find User Secret named '{UserSecretKey}' in configuration.");
-            }
-            return gitHubAccessToken;
-        }
-
         public static GraphQLHttpClient CreateGraphQLClient()
         {
-            var gitHubAccessToken = CommonHelper.GetGitHubAuthToken();
+            var gitHubAccessToken = ""; //CommonHelper.GetGitHubAuthToken();
 
             var graphQLHttpClient = new GraphQLHttpClient("https://api.github.com/graphql", new NewtonsoftJsonSerializer());
             graphQLHttpClient.HttpClient.DefaultRequestHeaders.Authorization =
@@ -83,13 +67,13 @@ namespace CreateMikLabelModel.DL.Common
         };
 
 
-        public static readonly Action<Dictionary<(DateTimeOffset, long, string), string>, StreamWriter>
+        public static readonly Action<Dictionary<TrainingItem, string>, StreamWriter>
             saveAction = (lookup, outputWriter) =>
             {
                 var ordered = lookup
-                    .OrderBy(x => x.Key.Item1.UtcDateTime.ToFileTimeUtc())  //-> first by created date
-                    .ThenBy(x => x.Key.Item3)                               //-> then by repo name
-                    .ThenBy(x => x.Key.Item2)                               //-> then by issue number
+                    .OrderBy(x => x.Key.CreatedAt.UtcDateTime.ToFileTimeUtc())  //-> first by created date
+                    .ThenBy(x => x.Key.RepositoryName)                          //-> then by repo name
+                    .ThenBy(x => x.Key.Identifier)                              //-> then by issue number
                     .Select(x => x.Value);
 
                 foreach (var item in ordered)
@@ -100,33 +84,35 @@ namespace CreateMikLabelModel.DL.Common
 
         public static string GetCompressedLine(
             List<string> filePaths,
-            string area,
-            string authorLogin,
-            string prbody,
-            string prtitle,
-            DateTimeOffset prcreatedAt,
-            int prnumber,
-            string repo,
-            bool isPr)
+            string label,
+            string author,
+            string body,
+            string title,
+            DateTimeOffset createdAt,
+            long identifier,
+            string repositoryName,
+            bool isPullRequest)
         {
-            var author = authorLogin ?? DeletedUser;
-            var body = (prbody?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Replace('"', '`');
-            var title = prtitle.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Replace('"', '`');
-            var createdAt = prcreatedAt.UtcDateTime.ToFileTimeUtc();
-            if (isPr)
+            var createdAtTicks = createdAt.UtcDateTime.ToFileTimeUtc();
+
+            author ??= DeletedUser;
+            body = (body?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Replace('"', '`');
+            title = title.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Replace('"', '`');
+
+            if (isPullRequest)
             {
                 var filePathsJoined = string.Join(";", filePaths);
-                return $"{createdAt},{repo},{prnumber}\t{prnumber}\t{area}\t{title}\t{body}\t{author}\t1\t{filePathsJoined}";
+                return $"{createdAtTicks},{repositoryName},{identifier}\t{identifier}\t{label}\t{title}\t{body}\t{author}\t1\t{filePathsJoined}";
             }
             else
             {
-                return $"{createdAt},{repo},{prnumber}\t{prnumber}\t{area}\t{title}\t{body}\t{author}\t0\t";
+                return $"{createdAtTicks},{repositoryName},{identifier}\t{identifier}\t{label}\t{title}\t{body}\t{author}\t0\t";
             }
         }
 
         public static void WriteCsvHeader(StreamWriter outputWriter)
         {
-            outputWriter.WriteLine("CombinedID\tID\tArea\tTitle\tDescription\tAuthor\tIsPR\tFilePaths");
+            outputWriter.WriteLine("CombinedID\tID\tLabel\tTitle\tDescription\tAuthor\tIsPR\tFilePaths");
         }
     }
 }

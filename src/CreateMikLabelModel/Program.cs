@@ -58,9 +58,9 @@ namespace CreateMikLabelModel
                 {
                     Trace.WriteLine($"    {repoSet[0]}{GetExtraRepoInfo(repoSet)}");
                 }
+
                 return 1;
             }
-
             var repoSetArg = args[0];
             var selectedRepoSet = repoArrays.SingleOrDefault(rs => rs[0] == repoSetArg);
             if (selectedRepoSet == null)
@@ -77,10 +77,10 @@ namespace CreateMikLabelModel
             var prFiles = new DataFilePaths(folder, customFilenamePrefix, forPrs: true, skip: false);
 
             // 1. Download and save GitHub issues and PRs into a single tab delimited compact tsv file (one record per line)
-            if (await DownloadHelper.DownloadItemsAsync(issueFiles.InputPath, repoCombo) == -1)
-            {
-                return -1;
-            }
+            //if (await DownloadHelper.DownloadItemsAsync(issueFiles.InputPath, repoCombo) == -1)
+            //{
+            //    return -1;
+            //}
 
             // 2. Segment Issues/PRs into Train, Validate, and Test data (80-10-10 percent ratio) and save intermediate files
             var dm = new DatasetModifier(targetRepo: repoCombo[0].repo);
