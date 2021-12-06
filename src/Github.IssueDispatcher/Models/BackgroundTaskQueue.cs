@@ -1,12 +1,6 @@
-﻿
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
-namespace Microsoft.DotNet.GitHub.IssueLabeler
+namespace GitHub.IssueDispatcher.Models
 {
     public interface IBackgroundTaskQueue
     {
@@ -24,7 +18,6 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
         private SemaphoreSlim _signal = new SemaphoreSlim(0);
 
         public BackgroundTaskQueue(
-            IConfiguration configuration,
             ILogger<BackgroundTaskQueue> logger)
         {
             _logger = logger;

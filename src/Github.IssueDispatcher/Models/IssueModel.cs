@@ -4,9 +4,8 @@
 
 using Microsoft.ML.Data;
 using Newtonsoft.Json;
-using System.Collections.Generic;
 
-namespace Microsoft.DotNet.GitHub.IssueLabeler
+namespace GitHub.IssueDispatcher.Models
 {
     public class IssueModel
     {

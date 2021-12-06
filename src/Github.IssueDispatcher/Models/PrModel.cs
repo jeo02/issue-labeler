@@ -4,7 +4,7 @@
 
 using Microsoft.ML.Data;
 
-namespace Microsoft.DotNet.GitHub.IssueLabeler
+namespace GitHub.IssueDispatcher.Models
 {
     public class PrModel : IssueModel
     {

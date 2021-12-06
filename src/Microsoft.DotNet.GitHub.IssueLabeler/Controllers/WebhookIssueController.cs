@@ -2,14 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.DotNet.Github.IssueLabeler.Models;
-using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.DotNet.GitHub.IssueLabeler

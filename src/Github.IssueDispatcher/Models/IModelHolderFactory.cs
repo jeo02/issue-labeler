@@ -1,9 +1,6 @@
-﻿using Microsoft.DotNet.GitHub.IssueLabeler;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
-namespace Microsoft.DotNet.Github.IssueLabeler.Models
+namespace GitHub.IssueDispatcher.Models
 {
     public interface IModelHolderFactory
     {

@@ -5,7 +5,6 @@
 using Hubbup.MikLabelModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.DotNet.Github.IssueLabeler;
 using Microsoft.DotNet.Github.IssueLabeler.Models;
 using Microsoft.DotNet.GitHub.IssueLabeler.Data;
 using Microsoft.Extensions.Azure;

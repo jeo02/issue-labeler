@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
-using System.IO;
 using System.Linq;
 
 namespace Microsoft.DotNet.GitHub.IssueLabeler

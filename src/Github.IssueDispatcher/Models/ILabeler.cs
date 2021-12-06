@@ -2,13 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Hubbup.MikLabelModel;
-using System.Threading.Tasks;
-
-namespace Microsoft.DotNet.GitHub.IssueLabeler
+namespace GitHub.IssueDispatcher.Models
 {
     public interface ILabeler
     {
-        Task<LabelSuggestion> PredictUsingModelsFromStorageQueue(string owner, string repo, int number);
+        Task DispatchLabelsAsync(string owner, string repo, int number);
     }
 }
