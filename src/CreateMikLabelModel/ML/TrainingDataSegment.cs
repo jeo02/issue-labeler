@@ -2,9 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-
-namespace Azure.Sdk.LabelTrainer
+namespace CreateMikLabelModel.ML
 {
-    internal record LabelType(string Name, Func<object, bool> FilterPredicate);
+   public record TrainingDataSegment(TrainingDataFilePaths Issues, TrainingDataFilePaths PullRequests);
 }

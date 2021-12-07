@@ -10,7 +10,7 @@ namespace CreateMikLabelModel.ML
 {
     public struct ExperimentModifier
     {
-        public ExperimentModifier(DataFilePaths paths, bool forPrs)
+        public ExperimentModifier(TrainingDataFilePaths paths, bool forPrs)
         {
             // set all to defaults:
             ColumnSetup = (columnInformation, forPrs) =>
@@ -70,7 +70,7 @@ namespace CreateMikLabelModel.ML
             bool forPrs,
             uint experimentTime,
             string labelColumnName,
-            DataFilePaths paths,
+            TrainingDataFilePaths paths,
             Action<ColumnInformation, bool> columnSetup,
             Action<ICollection<MulticlassClassificationTrainer>> trainerSetup)
         {
@@ -87,6 +87,6 @@ namespace CreateMikLabelModel.ML
         public readonly Action<ColumnInformation, bool> ColumnSetup;
         public readonly Action<ICollection<MulticlassClassificationTrainer>> TrainerSetup;
         public readonly bool ForPrs;
-        public readonly DataFilePaths Paths;
+        public readonly TrainingDataFilePaths Paths;
     }
 }

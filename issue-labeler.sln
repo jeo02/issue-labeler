@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31808.319
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3D534DD7-7F6F-45D7-A62B-3E7DCF9FAB8F}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{162FF4CF-3941-40FD-B8EF-F0DF1FA84C6C}"
 	ProjectSection(SolutionItems) = preProject
 		NuGet.config = NuGet.config
@@ -63,6 +61,7 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
+<<<<<<< HEAD
 	GlobalSection(NestedProjects) = preSolution
 		{5966A77B-5114-4608-92AD-524F181FA0FC} = {3D534DD7-7F6F-45D7-A62B-3E7DCF9FAB8F}
 		{CA47F6FC-382F-4034-9F12-517CC14E5CB0} = {3D534DD7-7F6F-45D7-A62B-3E7DCF9FAB8F}
@@ -72,6 +71,8 @@ Global
 		{9E6BA2D8-3BBE-40D6-9DAF-0FC0CD362BD4} = {3D534DD7-7F6F-45D7-A62B-3E7DCF9FAB8F}
 		{5A956057-A887-400B-A7D3-A99581198698} = {3D534DD7-7F6F-45D7-A62B-3E7DCF9FAB8F}
 	EndGlobalSection
+=======
+>>>>>>> e794e8d (WIP)
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {60D53155-0C10-41E9-B797-FC68F4EDFF8A}
 	EndGlobalSection

@@ -11,7 +11,7 @@ namespace CreateMikLabelModel.ML
     public static class MulticlassExperimentSettingsHelper
     {
         public static (ColumnInferenceResults columnInference, MulticlassExperimentSettings experimentSettings) SetupExperiment(
-            MLContext mlContext, ExperimentModifier st, DataFilePaths paths, bool forPrs)
+            MLContext mlContext, ExperimentModifier st, TrainingDataFilePaths paths, bool forPrs)
         {
             var columnInference = InferColumns(mlContext, paths.TrainPath, st.LabelColumnName);
             var columnInformation = columnInference.ColumnInformation;

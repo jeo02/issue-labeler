@@ -17,12 +17,12 @@ namespace CreateMikLabelModel.ML
             _mLContext = new MLContext(seed: 0);
         }
 
-        public void Test(DataFilePaths files, bool forPrs)
+        public void Test(TrainingDataFilePaths files, bool forPrs)
         {
             MulticlassExperimentHelper.TestPrediction(_mLContext, files, forPrs: forPrs);
         }
 
-        public void Train(DataFilePaths files, bool forPrs)
+        public void Train(TrainingDataFilePaths files, bool forPrs)
         {
             var stopWatch = Stopwatch.StartNew();
 

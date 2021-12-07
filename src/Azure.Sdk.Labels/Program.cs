@@ -5,8 +5,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using CreateMikLabelModel;
 using System.Threading.Tasks;
+using CreateMikLabelModel;
 
 namespace Azure.Sdk.LabelTrainer
 {
@@ -26,14 +26,21 @@ namespace Azure.Sdk.LabelTrainer
         ///
         /// <param name="repository">The full path for the repository to train.</param>
         /// <param name="gitHubToken">The access token to use for interacting with GitHub.</param>
+        /// <param name="dataFileDirectory">[OPTIONAL] The directory in which to keep the data files; if not specified, the current directory will be assumed.  If specified, the directory will be created if it does not exist.</param>
         ///
         /// <example>
         ///   <code>
-        ///     dotnet run -- --repository "Azure/azure-sdk-for-net"  --git-hub-token "[[ TOKEN ]]"
+        ///     dotnet run -- --repository "Azure/azure-sdk-for-net" --git-hub-token "[[ TOKEN ]]"
         ///   </code>
         /// </example>
         ///
-        public static async Task<int> Main(string repository, string gitHubToken)
+        /// <example>
+        ///   <code>
+        ///     dotnet run -- --repository "Azure/azure-sdk-for-net" --git-hub-token "[[ TOKEN ]]" --dataFileDirectory "c:\data\training"
+        ///   </code>
+        /// </example>
+        ///
+        public static async Task<int> Main(string repository, string gitHubToken, string dataFileDirectory = default)
         {
             if ((string.IsNullOrEmpty(repository)) || (string.IsNullOrEmpty(gitHubToken)))
             {
@@ -42,44 +49,97 @@ namespace Azure.Sdk.LabelTrainer
                 Console.WriteLine("");
                 Console.WriteLine("Usage:");
                 Console.WriteLine("\tdotnet run -- --repository \"Azure/azure-sdk-for-net\" --git-hub-token \"[[ TOKEN ]]\"");
+                Console.WriteLine("\tdotnet run -- --repository \"Azure/azure-sdk-for-js\" --git-hub-token \"[[ TOKEN ]]\" --dataFileDirectory \"c:\\data\\training\"");
                 Console.WriteLine("");
 
                 return -1;
             }
 
-            // ==============================================================================
-            //  TODO: FIGURE OUT WHY TRACE ISN'T BEING PICKED UP ACCROSS LIBRARY BOUNDARIES
-            // ==============================================================================
+            // Ensure the path for training data.
 
+            dataFileDirectory = string.IsNullOrEmpty(dataFileDirectory)
+                ? Environment.CurrentDirectory
+                : dataFileDirectory;
 
-            // Training output is communicated using Trace diagnostics.  Create listeners for
-            // capturing in a log file and echoing to the command line.
-
-            using var fileTraceListener = new TextWriterTraceListener(Path.Combine(Environment.CurrentDirectory, TraceLogFilename));
-            using var consoleTraceListener = new ConsoleTraceListener();
-
-            // Query GitHub to build the set of training data.
-
-            var trainer = new LabelModelTrainer(gitHubToken);
-
-            // Step 1: Download the common set of training items (issues and pull requests) for all interested labels.
-
-            await trainer.PrepareTrainingSet(gitHubToken, Environment.CurrentDirectory, LabelTypes.AllTypesFilter).ConfigureAwait(false);
-
-            // Each type of label needs to be trained separately.
-
-            foreach (var labelType in LabelTypes.Types)
+            if (!Directory.Exists(dataFileDirectory))
             {
-                // Step 2: Segment the training items into discrete sets for training, validating, and testing the model.
-                    // TODO: Implement on `LabelModelTrainer` and invoke here.
-
-                // Step 3: Train the model.
-                    // TODO: Create an `MLHelper`and invoke `Train` for issues and then again for PRs.
-
-                // Step 4: Test the model.
-                    // TODO: Create (or reuse) an `MLHelper` and invoke `Test` for issues and then again for PRs.
+                Directory.CreateDirectory(dataFileDirectory);
             }
 
+            // Build the set of training data.
+
+            var logger = new ConsoleLogger();
+            var trainer = new LabelModelTrainer(repository, logger);
+
+            // Step 1: Download the common set of training items and use them to prepare a training data set.  This will include
+            // all segments for the different label types needed.
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(new String('=', 80));
+            Console.WriteLine("  Preparing training data");
+            Console.WriteLine(new String('=', 80));
+            Console.ResetColor();
+
+            var filters = new AzureSdkTrainingDataFilters();
+            var processor = new AzureSdkTrainingDataProcessor(logger);
+            var trainingDataFiles = await trainer.QueryTrainingData(gitHubToken, dataFileDirectory, processor, filters).ConfigureAwait(false);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(new String('=', 80));
+            Console.WriteLine("  Training data preparation complete.");
+            Console.WriteLine(new String('=', 80));
+            Console.ResetColor();
+
+            // Each segment will produce an dedicated set of models for that specific label type; process each separately.
+
+            foreach (var trainingSegment in trainingDataFiles)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(new String('=', 80));
+                Console.WriteLine($"  Processing segment: { trainingSegment.Key }");
+                Console.WriteLine(new String('=', 80));
+                Console.ResetColor();
+
+                // Step 2: Translate the training data into
+
+                trainer.GenerateTrainingDatasets(trainingSegment.Value);
+                Console.WriteLine();
+
+                // Step 3: Train the model.
+
+                trainer.TrainModels(trainingSegment.Value);
+                Console.WriteLine();
+
+                // Step 4: Test the model.
+
+                trainer.TestModels(trainingSegment.Value);
+
+                // Provide information on where the model files are.
+
+                Console.WriteLine();
+                Console.WriteLine();
+
+                if (!trainingSegment.Value.Issues.SkipProcessing)
+                {
+                    Console.WriteLine($"Final issue model: '{ trainingSegment.Value.Issues.FinalModelPath }'");
+                }
+
+                if (!trainingSegment.Value.PullRequests.SkipProcessing)
+                {
+                    Console.WriteLine($"Final pull request model: '{ trainingSegment.Value.PullRequests.FinalModelPath }'");
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(new String('=', 80));
+                Console.WriteLine($"  Segment: { trainingSegment.Key } complete.");
+                Console.WriteLine(new String('=', 80));
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.WriteLine("==== Training complete ====");
             return 0;
         }
     }

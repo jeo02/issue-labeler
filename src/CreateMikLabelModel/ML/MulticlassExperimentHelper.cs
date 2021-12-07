@@ -55,7 +55,7 @@ namespace CreateMikLabelModel.ML
 
         public static ExperimentResult<MulticlassClassificationMetrics> Train(
             MLContext mlContext, MulticlassExperimentSettings experimentSettings,
-            MulticlassExperimentProgressHandler progressHandler, DataFilePaths paths, TextLoader textLoader, ColumnInferenceResults columnInference)
+            MulticlassExperimentProgressHandler progressHandler, TrainingDataFilePaths paths, TextLoader textLoader, ColumnInferenceResults columnInference)
         {
             var data = mlContext.Data.TrainTestSplit(textLoader.Load(paths.TrainPath, paths.ValidatePath), seed: 0);
 
@@ -82,7 +82,7 @@ namespace CreateMikLabelModel.ML
         }
 
         public static ITransformer Retrain(MLContext mlContext, ExperimentResult<MulticlassClassificationMetrics> experimentResult,
-            ColumnInferenceResults columnInference, DataFilePaths paths, bool fixedBug = false)
+            ColumnInferenceResults columnInference, TrainingDataFilePaths paths, bool fixedBug = false)
         {
             ConsoleHelper.ConsoleWriteHeader("=============== Re-fitting best pipeline ===============");
             var textLoader = mlContext.Data.CreateTextLoader(columnInference.TextLoaderOptions);
@@ -145,7 +145,7 @@ namespace CreateMikLabelModel.ML
             Trace.WriteLine($"The model is saved to {modelPath}");
         }
 
-        public static void TestPrediction(MLContext mlContext, DataFilePaths files, bool forPrs, double threshold = 0.4)
+        public static void TestPrediction(MLContext mlContext, TrainingDataFilePaths files, bool forPrs, double threshold = 0.4)
         {
             var trainedModel = mlContext.Model.Load(files.FittedModelPath, out _);
             IEnumerable<(string knownLabel, GitHubIssuePrediction predictedResult, string issueNumber)> predictions = null;

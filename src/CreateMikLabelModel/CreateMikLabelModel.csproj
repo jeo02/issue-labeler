@@ -5,11 +5,6 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
-  <ItemGroup>
-    <Content Include="repos.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Hubbup.MikLabelModel\Hubbup.MikLabelModel.csproj" />
@@ -17,12 +12,10 @@
 
   <ItemGroup>
     <PackageReference Include="Octokit" Version="$(OctokitVersion)" />
-    <PackageReference Include="Octokit.GraphQL" Version="$(OctokitGraphQLVersion)" />
-    <PackageReference Include="GraphQL.Client" Version="3.1.2" />
-    <PackageReference Include="GraphQL.Client.Serializer.Newtonsoft" Version="3.1.2" />
     <PackageReference Include="Microsoft.ML" Version="$(MicrosoftMLVersion)" />
     <PackageReference Include="Microsoft.ML.AutoML" Version="$(MicrosoftAutoMLVersion)" />
     <PackageReference Include="Microsoft.ML.FastTree" Version="$(MicrosoftMLVersion)" />
+    <PackageReference Include="Polly" Version="$(PollyVersion)" />
   </ItemGroup>
 
 </Project>

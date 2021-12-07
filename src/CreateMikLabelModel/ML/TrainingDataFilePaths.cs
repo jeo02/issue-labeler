@@ -6,18 +6,18 @@ using System.IO;
 
 namespace CreateMikLabelModel.ML
 {
-    public readonly struct DataFilePaths
+    public readonly struct TrainingDataFilePaths
     {
-        public DataFilePaths(string folder, string commonPrefix, bool forPrs, bool skip) : this(folder, commonPrefix, string.Empty, forPrs, skip)
+        public TrainingDataFilePaths(string folder, string commonPrefix, bool forPrs, bool skip) : this(folder, commonPrefix, string.Empty, forPrs, skip)
         {
         }
 
-        public DataFilePaths(string folder, string commonPrefix, string modelPrefix, bool forPrs, bool skip)
+        public TrainingDataFilePaths(string folder, string commonPrefix, string modelPrefix, bool forPrs, bool skip)
         {
             Folder = folder;
             SkipProcessing = skip;
-            InputPath = Path.Combine(Folder, commonPrefix + "issueAndPrData.tsv");
-            var prefix = forPrs ? "only-prs" : "only-issues";
+            InputPath = Path.Combine(Folder, commonPrefix + "-IssueAndPrData.tsv");
+            var prefix = forPrs ? "-only-prs" : "-only-issues";
 
             TrainPath = Path.Combine(Folder, commonPrefix + prefix + "-part1.tsv");
             ValidatePath = Path.Combine(Folder, commonPrefix + prefix + "-part2.tsv");
