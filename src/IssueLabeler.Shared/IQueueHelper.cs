@@ -1,8 +1,11 @@
-﻿using Azure.Storage.Queues;
+﻿using Azure.Identity;
+using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
-namespace GitHub.IssueDispatcher.Models
+namespace IssueLabeler.Shared
 {
     public interface IQueueHelper
     {
@@ -28,18 +31,18 @@ namespace GitHub.IssueDispatcher.Models
             _gitHubClientWrapper = gitHubClientWrapper;
             _configuration = configuration;
             _queueName = configuration["QueueName"];
+            _queueAccountUri = new Uri(configuration["QueueUri"]);
         }
+
         private bool CreateQueue(string queueName)
         {
             try
             {
-                // Get the connection string from app settings
-                string connectionString = _configuration["QConnectionString"];
-
+                _queueClient = GetQueueClient(queueName);
                 if (_queueClient == null)
                 {
                     // Instantiate a QueueClient which will be used to create and manipulate the queue
-                    _queueClient = new QueueClient(connectionString, queueName);
+                   
 
                     // Create the queue if it doesn't already exist
                     _queueClient.CreateIfNotExists();
@@ -66,14 +69,10 @@ namespace GitHub.IssueDispatcher.Models
 
         private void InsertMessage(string queueName, string message)
         {
-            // Get the connection string from app settings
-            string connectionString = _configuration["QConnectionString"];
-
             if (_queueClient == null)
             {
                 // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = new QueueClient(connectionString, queueName);
-
+                _queueClient = GetQueueClient(_queueName);
                 // Create the queue if it doesn't already exist
                 _queueClient.CreateIfNotExists();
             }
@@ -92,14 +91,11 @@ namespace GitHub.IssueDispatcher.Models
         //-----------------------------------------------------
         private async Task CleanupMessages(string queueName)
         {
-            // Get the connection string from app settings
-            string connectionString = _configuration["QConnectionString"];
-
             // Instantiate a QueueClient which will be used to manipulate the queue
             if (_queueClient == null)
             {
                 // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = new QueueClient(connectionString, queueName);
+                _queueClient = GetQueueClient(_queueName);
             }
             
             bool shouldDelete = _configuration.GetSection("ShouldDeleteQueue").Get<bool>();
@@ -154,14 +150,12 @@ namespace GitHub.IssueDispatcher.Models
         {
             await Task.Delay(1);
             var issuesPending = new HashSet<(string, string, int)>();
-            // Get the connection string from app settings
-            string connectionString = _configuration["QConnectionString"];
-
+            
             // Instantiate a QueueClient which will be used to manipulate the queue
             if (_queueClient == null)
             {
                 // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = new QueueClient(connectionString, _queueName);
+                _queueClient = GetQueueClient(_queueName);
 
                 // Create the queue if it doesn't already exist
                 _queueClient.CreateIfNotExists();
@@ -199,6 +193,13 @@ namespace GitHub.IssueDispatcher.Models
             return issuesPending;
         }
 
+        private QueueClient GetQueueClient(string queueName)
+        {
+            var builder = new UriBuilder(_queueAccountUri);
+            builder.Path = queueName;
+            return new QueueClient(builder.Uri, new DefaultAzureCredential());
+        }
+
         public async Task CleanupQueue()
         {
             await Task.Delay(1);
@@ -224,6 +225,8 @@ namespace GitHub.IssueDispatcher.Models
         }
         private int count = 0;
         private readonly string _queueName;
+        private readonly Uri _queueAccountUri;
+
         public Task InsertMessageTask(string msg)
         {
             var tasks = new List<Task>();

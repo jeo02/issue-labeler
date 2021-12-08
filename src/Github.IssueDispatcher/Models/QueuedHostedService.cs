@@ -1,4 +1,6 @@
-﻿namespace GitHub.IssueDispatcher.Models
+﻿using IssueLabeler.Shared;
+
+namespace GitHub.IssueDispatcher.Models
 {
     public class QueuedHostedService : BackgroundService
     {

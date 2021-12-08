@@ -1,9 +1,9 @@
-﻿using Microsoft.DotNet.GitHub.IssueLabeler;
+﻿using Hubbup.MikLabelModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
-namespace Microsoft.DotNet.Github.IssueLabeler.Models
+namespace IssueLabeler.Shared.Models
 {
     public interface IModelHolderFactory
     {

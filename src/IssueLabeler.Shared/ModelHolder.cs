@@ -1,16 +1,13 @@
-﻿using System;
-using Azure.Storage;
+﻿using Azure.Storage;
 using Azure.Storage.Blobs;
-using Microsoft.ML;
 using Azure.Storage.Blobs.Models;
-using System.IO;
-using System.Threading;
-using Microsoft.DotNet.GitHub.IssueLabeler;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.ML;
 
-namespace Microsoft.DotNet.Github.IssueLabeler.Models
+namespace Hubbup.MikLabelModel
 {
     public interface IModelHolder
     {
@@ -27,8 +24,8 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Models
     // IModelHolder.... holds the prediction engin.... -> is it loaded yet? then if so return suggestion
     public class ModelHolder : IModelHolder
     {
-        private readonly ILogger<ModelHolderFactory> _logger;
-        public ModelHolder(ILogger<ModelHolderFactory> logger, IConfiguration configuration, string repo)
+        private readonly ILogger _logger;
+        public ModelHolder(ILogger logger, IConfiguration configuration, string repo)
         {
             // TODO: imagine there is an array of model holders, prefixes itself with owner/repo info.
 

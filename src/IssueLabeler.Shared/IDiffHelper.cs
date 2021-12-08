@@ -4,7 +4,7 @@
 
 using System.Collections.Generic;
 
-namespace Hubbup.MikLabelModel
+namespace IssueLabeler.Shared
 {
     public interface IDiffHelper
     {

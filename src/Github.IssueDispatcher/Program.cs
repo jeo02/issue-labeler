@@ -1,6 +1,4 @@
-using GitHub.IssueDispatcher.Models;
-using GitHub.IssueDispatcher.Models.Data;
-using Hubbup.MikLabelModel;
+using IssueLabeler.Shared;
 using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);

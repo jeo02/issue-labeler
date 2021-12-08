@@ -3,10 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using Hubbup.MikLabelModel;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.DotNet.Github.IssueLabeler.Models;
-using Microsoft.DotNet.GitHub.IssueLabeler.Data;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

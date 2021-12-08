@@ -1,4 +1,5 @@
 ﻿using GitHub.IssueDispatcher.Models;
+using IssueLabeler.Shared;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GitHub.IssueDispatcher

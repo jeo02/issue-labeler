@@ -1,4 +1,6 @@
-﻿namespace GitHub.IssueDispatcher.Models
+﻿using IssueLabeler.Shared.Models;
+
+namespace IssueLabeler.Shared
 {
     public interface ILabelRetriever
     {

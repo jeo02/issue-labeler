@@ -9,7 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Hubbup.MikLabelModel
+namespace IssueLabeler.Shared
 {
     public struct SegmentedDiff
     {

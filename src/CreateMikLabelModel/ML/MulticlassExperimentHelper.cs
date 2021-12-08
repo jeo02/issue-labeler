@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using Hubbup.MikLabelModel;
+using IssueLabeler.Shared;
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
@@ -181,22 +182,22 @@ namespace CreateMikLabelModel.ML
                 predictions.Select(x =>
                 (
                     knownLabel: x.knownLabel,
-                    predictedLabel: x.predictedResult.Label,
+                    predictedArea: x.predictedResult.Area,
                     maxScore: x.predictedResult.Score.Max(),
                     confidentInPrediction: x.predictedResult.Score.Max() >= threshold,
                     issueNumber: x.issueNumber
                 ));
 
             var countSuccess = analysis.Where(x =>
-                    (x.confidentInPrediction && x.predictedLabel.Equals(x.knownLabel, StringComparison.Ordinal)) ||
-                    (!x.confidentInPrediction && !x.predictedLabel.Equals(x.knownLabel, StringComparison.Ordinal))).Count();
+                    (x.confidentInPrediction && x.predictedArea.Equals(x.knownLabel, StringComparison.Ordinal)) ||
+                    (!x.confidentInPrediction && !x.predictedArea.Equals(x.knownLabel, StringComparison.Ordinal))).Count();
 
             var missedOpportunity = analysis
-                .Where(x => !x.confidentInPrediction && x.knownLabel.Equals(x.predictedLabel, StringComparison.Ordinal)).Count();
+                .Where(x => !x.confidentInPrediction && x.knownLabel.Equals(x.predictedArea, StringComparison.Ordinal)).Count();
 
             var mistakes = analysis
-                .Where(x => x.confidentInPrediction && !x.knownLabel.Equals(x.predictedLabel, StringComparison.Ordinal))
-                .Select(x => new { Pair = $"\tPredicted: {x.predictedLabel}, Actual:{x.knownLabel}", IssueNumbers = x.issueNumber, MaxConfidencePercentage = x.maxScore * 100.0f })
+                .Where(x => x.confidentInPrediction && !x.knownLabel.Equals(x.predictedArea, StringComparison.Ordinal))
+                .Select(x => new { Pair = $"\tPredicted: {x.predictedArea}, Actual:{x.knownLabel}", IssueNumbers = x.issueNumber, MaxConfidencePercentage = x.maxScore * 100.0f })
                 .GroupBy(x => x.Pair)
                 .Select(x => new
                 {

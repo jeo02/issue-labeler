@@ -1,16 +1,10 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-
+﻿using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using GitHubJwt;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Models;
-using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Configuration;
-
 using Octokit;
 
-namespace Microsoft.DotNet.GitHub.IssueLabeler.Data
+namespace IssueLabeler.Shared
 {
     public sealed class GitHubClientFactory
     {
@@ -26,17 +20,16 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler.Data
             // See: https://octokitnet.readthedocs.io/en/latest/github-apps/ for details.
 
             var appId = Convert.ToInt32(_configuration["GitHubAppId"]);
-            string privateKey = null;
+            string privateKey;
             if (localDev)
             {
                 privateKey = File.ReadAllText(_configuration["PemFilePath"]);
             }
             else
             {
-                AzureServiceTokenProvider azureServiceTokenProvider = new AzureServiceTokenProvider();
-                KeyVaultClient keyVaultClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
-                SecretBundle secretBundle = await keyVaultClient.GetSecretAsync(_configuration["AppSecretUri"]).ConfigureAwait(false);
-                privateKey = secretBundle.Value;
+                SecretClient secretClient = new SecretClient(new Uri(_configuration["KeyVaultUri"]), new DefaultAzureCredential());
+                KeyVaultSecret secret = await secretClient.GetSecretAsync(_configuration["AppSecretName"]).ConfigureAwait(false);
+                privateKey = secret.Value;
             }
 
             var privateKeySource = new PlainStringPrivateKeySource(privateKey);
@@ -50,8 +43,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler.Data
             var token = generator.CreateEncodedJwtToken();
 
             var client = CreateForToken(token, AuthenticationType.Bearer);
-
-            var installations = await client.GitHubApps.GetAllInstallationsForCurrent();
+            await client.GitHubApps.GetAllInstallationsForCurrent();
             var installationTokenResult = await client.GitHubApps.CreateInstallationToken(long.Parse(_configuration["InstallationId"]));
 
             return CreateForToken(installationTokenResult.Token, AuthenticationType.Oauth);

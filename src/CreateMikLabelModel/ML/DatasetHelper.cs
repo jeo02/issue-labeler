@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using Hubbup.MikLabelModel;
+using IssueLabeler.Shared;
 using System;
 using System.Collections.Generic;
 using System.Data;

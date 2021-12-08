@@ -1,4 +1,7 @@
-﻿using System.Collections.Concurrent;
+﻿using Hubbup.MikLabelModel;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
+using System.Collections.Concurrent;
 
 namespace GitHub.IssueDispatcher.Models
 {

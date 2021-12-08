@@ -2,11 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace Hubbup.MikLabelModel
+using System.Collections.Generic;
+
+namespace IssueLabeler.Shared
 {
-    public class ScoredLabel
+    public class LabelSuggestion
     {
-        public string LabelName { get; set; }
-        public float Score { get; set; }
+        public List<ScoredLabel> LabelScores { get; set; }
     }
 }

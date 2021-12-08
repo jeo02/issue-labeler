@@ -2,16 +2,23 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using GitHub.IssueDispatcher.Models.Data;
 using Hubbup.MikLabelModel;
-using Microsoft.Extensions.Caching.Memory;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Octokit;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
-namespace GitHub.IssueDispatcher.Models
+namespace IssueLabeler.Shared
 {
     public class Labeler : ILabeler
     {
@@ -21,7 +28,9 @@ namespace GitHub.IssueDispatcher.Models
         private readonly IDiffHelper _diffHelper;
         private readonly ILogger<Labeler> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IModelHolderFactory _modelHolderFactory;
         private readonly IConfiguration _configuration;
+        private readonly bool _useIssueLabelerForPrsToo;
         private readonly IGitHubClientWrapper _gitHubClientWrapper;
         private readonly IBackgroundTaskQueue _backgroundTaskQueue;
 
@@ -32,6 +41,7 @@ namespace GitHub.IssueDispatcher.Models
             ILogger<Labeler> logger,
             IBackgroundTaskQueue backgroundTaskQueue,
             IGitHubClientWrapper gitHubClientWrapper,
+            IModelHolderFactory modelHolderFactory,
             IDiffHelper diffHelper)
         {
             _queueHelper = queueHelper;
@@ -42,7 +52,49 @@ namespace GitHub.IssueDispatcher.Models
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _configuration = configuration;
+            _useIssueLabelerForPrsToo = configuration.GetSection(("UseIssueLabelerForPrsToo")).Get<bool>();
+            _modelHolderFactory = modelHolderFactory;
         }
+
+        public async Task<LabelSuggestion> PredictUsingModelsFromStorageQueue(string owner, string repo, int number)
+        {
+            if (_regex == null)
+            {
+                _regex = new Regex(@"@[a-zA-Z0-9_//-]+");
+            }
+            var modelHolder = _modelHolderFactory.CreateModelHolder(owner, repo);
+            if (modelHolder == null)
+            {
+                throw new InvalidOperationException($"Repo {owner}/{repo} is not yet configured for label prediction.");
+            }
+            if (!modelHolder.IsIssueEngineLoaded || (!modelHolder.UseIssuesForPrsToo && !modelHolder.IsPrEngineLoaded))
+            {
+                throw new InvalidOperationException("load engine before calling predict");
+            }
+
+            var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
+            bool isPr = iop.PullRequest != null;
+
+
+            string body = iop.Body ?? string.Empty;
+            var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
+            LabelSuggestion labelSuggestion = null;
+
+            if (isPr && !_useIssueLabelerForPrsToo)
+            {
+                var prModel = await CreatePullRequest(owner, repo, iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
+                labelSuggestion = Predictor.Predict(prModel, _logger, modelHolder);
+                _logger.LogInformation("predicted with pr model the new way");
+                _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
+                return labelSuggestion;
+            }
+            var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
+            labelSuggestion = Predictor.Predict(issueModel, _logger, modelHolder);
+            _logger.LogInformation("predicted with issue model the new way");
+            _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
+            return labelSuggestion;
+        }
+
 
         public Task DispatchLabelsAsync(string owner, string repo, int number)
         {
@@ -512,131 +564,5 @@ namespace GitHub.IssueDispatcher.Models
             return false; // diff --git a/src/libraries/(.*)/ref/(.*).cs b/src/libraries/(.*)/ref/(.*).cs
         }
 
-    }
-
-    public interface IGitHubClientWrapper
-    {
-        Task<Octokit.Issue> GetIssue(string owner, string repo, int number);
-        Task<Octokit.PullRequest> GetPullRequest(string owner, string repo, int number);
-        Task<IReadOnlyList<PullRequestFile>> GetPullRequestFiles(string owner, string repo, int number);
-        Task UpdateIssue(string owner, string repo, int number, IssueUpdate issueUpdate);
-        Task CommentOn(string owner, string repo, int number, string comment);
-    }
-    public class GitHubClientWrapper : IGitHubClientWrapper
-    {
-        private readonly  ILogger<GitHubClientWrapper> _logger;
-        private GitHubClient _client;
-        private readonly GitHubClientFactory _gitHubClientFactory;
-        private readonly bool _skipAzureKeyVault;
-
-        public GitHubClientWrapper(
-            ILogger<GitHubClientWrapper> logger,
-            IConfiguration configuration,
-            GitHubClientFactory gitHubClientFactory)
-        {
-            _logger = logger;
-            _skipAzureKeyVault = configuration.GetSection("SkipAzureKeyVault").Get<bool>(); // TODO locally true
-            _gitHubClientFactory = gitHubClientFactory;
-
-        }
-
-        public async Task<Octokit.Issue> GetIssue(string owner, string repo, int number)
-        {
-            if (_client == null)
-            {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-            }
-            Octokit.Issue iop = null;
-            try
-            {
-                iop = await _client.Issue.Get(owner, repo, number);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-                iop = await _client.Issue.Get(owner, repo, number);
-            }
-            return iop;
-        }
-
-        public async Task<Octokit.PullRequest> GetPullRequest(string owner, string repo, int number)
-        {
-            if (_client == null)
-            {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-            }
-            Octokit.PullRequest iop = null;
-            try
-            {
-                iop = await _client.PullRequest.Get(owner, repo, number);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-                iop = await _client.PullRequest.Get(owner, repo, number);
-            }
-            return iop;
-        }
-
-        public async Task<IReadOnlyList<PullRequestFile>> GetPullRequestFiles(string owner, string repo, int number)
-        {
-            if (_client == null)
-            {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-            }
-            IReadOnlyList<PullRequestFile> prFiles = null;
-            try
-            {
-                prFiles = await _client.PullRequest.Files(owner, repo, number);
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-                prFiles = await _client.PullRequest.Files(owner, repo, number);
-            }
-            return prFiles;
-        }
-
-        public async Task UpdateIssue(string owner, string repo, int number, IssueUpdate issueUpdate)
-        {
-            if (_client == null)
-            {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-            }
-            try
-            {
-                await _client.Issue.Update(owner, repo, number, issueUpdate);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-                await _client.Issue.Update(owner, repo, number, issueUpdate);
-            }
-        }
-
-        // lambda -> call and pass a lambda calls create, and if fails remake and call it again.
-
-        public async Task CommentOn(string owner, string repo, int number, string comment)
-        {
-            if (_client == null)
-            {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-            }
-            try
-            {
-                await _client.Issue.Comment.Create(owner, repo, number, comment);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
-                await _client.Issue.Comment.Create(owner, repo, number, comment);
-            }
-        }
     }
 }

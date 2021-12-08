@@ -1,6 +1,7 @@
-﻿using System.Collections.Concurrent;
+﻿using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
-namespace GitHub.IssueDispatcher.Models
+namespace IssueLabeler.Shared
 {
     public interface IBackgroundTaskQueue
     {

@@ -5,7 +5,7 @@
 using Microsoft.ML.Data;
 using Newtonsoft.Json;
 
-namespace GitHub.IssueDispatcher.Models
+namespace IssueLabeler.Shared.Models
 {
     public class IssueModel
     {

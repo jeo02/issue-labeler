@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using GitHub.IssueDispatcher.Models;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Github.IssueDispatcher

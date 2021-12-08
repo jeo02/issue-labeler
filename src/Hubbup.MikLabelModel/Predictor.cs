@@ -2,15 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Hubbup.MikLabelModel;
-using Microsoft.DotNet.Github.IssueLabeler.Models;
+using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Linq;
 
-namespace Microsoft.DotNet.GitHub.IssueLabeler
+namespace Hubbup.MikLabelModel
 {
     public static class Predictor
     {
