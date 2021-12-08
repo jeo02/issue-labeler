@@ -1,13 +1,13 @@
-﻿using Azure.Storage;
+﻿using Azure.Identity;
+using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using IssueLabeler.Shared;
 using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 
-namespace Hubbup.MikLabelModel
+namespace IssueLabeler.Shared
 {
     public interface IModelHolder
     {
@@ -24,14 +24,29 @@ namespace Hubbup.MikLabelModel
     // IModelHolder.... holds the prediction engin.... -> is it loaded yet? then if so return suggestion
     public class ModelHolder : IModelHolder
     {
+        private readonly string _prModelBlobName;
+        private readonly string _issueModelBlobName;
         private readonly ILogger _logger;
+        private int _loadRequested;        private bool IsPrModelPathDownloaded => (UseIssuesForPrsToo && IsIssueModelPathDownloaded) || File.Exists(PrPath);
+        private bool IsIssueModelPathDownloaded => File.Exists(IssuePath);
+        private string PrPath;
+        private string IssuePath;
+        private int timesIssueDownloaded = 0;
+        private int timesPrDownloaded = 0;
+        private Uri _blobContainerUri;
+        public bool LoadRequested => _loadRequested != 0;
+        public bool IsPrEngineLoaded => (PrPredEngine != null);
+        public bool IsIssueEngineLoaded => (IssuePredEngine != null);
+        public bool UseIssuesForPrsToo { get; private set; }
+        public PredictionEngine<IssueModel, GitHubIssuePrediction> IssuePredEngine { get; private set; } = null;
+        public PredictionEngine<PrModel, GitHubIssuePrediction> PrPredEngine { get; private set; } = null;
+
         public ModelHolder(ILogger logger, IConfiguration configuration, string repo)
         {
             // TODO: imagine there is an array of model holders, prefixes itself with owner/repo info.
 
             _logger = logger;
-            _connectionString = configuration["QConnectionString"];
-            _blobContainerName = configuration["BlobContainer"];
+            _blobContainerUri = new Uri(new Uri(configuration["BlobAccountUri"]), configuration["BlobContainerName"]);
 
             // the following four configuration values are per repo values.
             string configSection = $"IssueModel:{repo}:PathPrefix";
@@ -75,18 +90,7 @@ namespace Hubbup.MikLabelModel
             }
             _loadRequested = 0;
         }
-        private int _loadRequested;
-        private bool IsPrModelPathDownloaded => (UseIssuesForPrsToo && IsIssueModelPathDownloaded) || File.Exists(PrPath);
-        private bool IsIssueModelPathDownloaded => File.Exists(IssuePath);
-        private string PrPath;
-        private string IssuePath;
 
-        public bool LoadRequested => _loadRequested != 0;
-        public bool IsPrEngineLoaded => (PrPredEngine != null);
-        public bool IsIssueEngineLoaded => (IssuePredEngine != null);
-        public bool UseIssuesForPrsToo { get; private set; }
-        public PredictionEngine<IssueModel, GitHubIssuePrediction> IssuePredEngine { get; private set; } = null;
-        public PredictionEngine<PrModel, GitHubIssuePrediction> PrPredEngine { get; private set; } = null;
         public async Task LoadEnginesAsync()
         {
             _logger.LogInformation($"! {nameof(LoadEnginesAsync)} called.");
@@ -115,9 +119,6 @@ namespace Hubbup.MikLabelModel
             }
         }
 
-        private int timesIssueDownloaded = 0;
-        private int timesPrDownloaded = 0;
-
         private async Task EnsureModelPathsAvailableAsync()
         {
             _logger.LogInformation($"! {nameof(EnsureModelPathsAvailableAsync)} called.");
@@ -127,7 +128,7 @@ namespace Hubbup.MikLabelModel
             }
 
             _logger.LogInformation($"! calling {nameof(BlobContainerClient)}.");
-            BlobContainerClient container = new BlobContainerClient(_connectionString, _blobContainerName);
+            BlobContainerClient container = new BlobContainerClient(_blobContainerUri, new DefaultAzureCredential());
             container.CreateIfNotExists(PublicAccessType.Blob);
 
             try
@@ -135,13 +136,13 @@ namespace Hubbup.MikLabelModel
                 if (!IsIssueModelPathDownloaded)
                 {
                     _logger.LogInformation($"! downloading to {IssuePath}.");
-                    await DownloadModelAsync(_logger, container, _issueModelBlobName, /*lastUpdated,*/ IssuePath);
+                    await DownloadModelAsync(_logger, container, _issueModelBlobName, IssuePath);
                     Interlocked.Increment(ref timesIssueDownloaded);
                 }
                 if (!IsPrModelPathDownloaded)
                 {
                     _logger.LogInformation($"! downloading to {PrPath}.");
-                    await DownloadModelAsync(_logger, container, _prModelBlobName, /*lastUpdated,*/ PrPath);
+                    await DownloadModelAsync(_logger, container, _prModelBlobName, PrPath);
                     Interlocked.Increment(ref timesPrDownloaded);
                 }
                 _logger.LogInformation($"! downloaded version of ml model available at {Directory.GetCurrentDirectory()}.");
@@ -153,10 +154,7 @@ namespace Hubbup.MikLabelModel
             }
         }
 
-        private static async Task DownloadModelAsync(
-            ILogger _logger, BlobContainerClient container, string blobName, /*DateTimeOffset lastUpdated,*/
-            string localPath
-            )
+        private static async Task DownloadModelAsync(ILogger _logger, BlobContainerClient container, string blobName, string localPath)
         {
             if (!File.Exists(localPath))
             {
@@ -175,10 +173,5 @@ namespace Hubbup.MikLabelModel
                 _logger.LogInformation($"downloaded ml model");
             }
         }
-
-        private readonly string _blobContainerName;
-        private readonly string _prModelBlobName;
-        private readonly string _issueModelBlobName;
-        private readonly string _connectionString;
     }
 }

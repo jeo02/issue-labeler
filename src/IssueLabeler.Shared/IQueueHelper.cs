@@ -21,6 +21,8 @@ namespace IssueLabeler.Shared
         private readonly ILogger<QueueHelper> _logger;
         private readonly IConfiguration _configuration;
         private QueueClient _queueClient;
+        private int count = 0;
+        private readonly Uri _queueAccountUri;
         private readonly Regex _regex = new Regex(@"/(?<owner>dotnet|microsoft)/(?<repo>coreclr|corefx|core-setup|runtime)#(?<num>\d+)");
 
         public QueueHelper(IConfiguration configuration,
@@ -30,19 +32,18 @@ namespace IssueLabeler.Shared
             _logger = logger;
             _gitHubClientWrapper = gitHubClientWrapper;
             _configuration = configuration;
-            _queueName = configuration["QueueName"];
             _queueAccountUri = new Uri(configuration["QueueUri"]);
+            CreateQueue();
         }
 
-        private bool CreateQueue(string queueName)
+        private bool CreateQueue()
         {
             try
             {
-                _queueClient = GetQueueClient(queueName);
                 if (_queueClient == null)
                 {
                     // Instantiate a QueueClient which will be used to create and manipulate the queue
-                   
+                    _queueClient = GetQueueClient();
 
                     // Create the queue if it doesn't already exist
                     _queueClient.CreateIfNotExists();
@@ -67,21 +68,9 @@ namespace IssueLabeler.Shared
             }
         }
 
-        private void InsertMessage(string queueName, string message)
+        private void InsertMessage(string message)
         {
-            if (_queueClient == null)
-            {
-                // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = GetQueueClient(_queueName);
-                // Create the queue if it doesn't already exist
-                _queueClient.CreateIfNotExists();
-            }
-
-            if (_queueClient.Exists())
-            {
-                // Send a message to the queue
-                _queueClient.SendMessage(message);
-            }
+            _queueClient.SendMessage(message);
 
             Console.WriteLine($"Inserted: {message}");
         }
@@ -89,51 +78,41 @@ namespace IssueLabeler.Shared
         //-----------------------------------------------------
         // Process and remove multiple messages from the queue
         //-----------------------------------------------------
-        private async Task CleanupMessages(string queueName)
+        private async Task CleanupMessages()
         {
-            // Instantiate a QueueClient which will be used to manipulate the queue
-            if (_queueClient == null)
-            {
-                // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = GetQueueClient(_queueName);
-            }
-            
             bool shouldDelete = _configuration.GetSection("ShouldDeleteQueue").Get<bool>();
             bool shouldUpdate = _configuration.GetSection("ShouldUpdateQueue").Get<bool>();
 
-            if (_queueClient.Exists())
+            // Receive and process 20 messages
+            QueueMessage[] receivedMessages = _queueClient.ReceiveMessages(20, TimeSpan.FromMinutes(5));
+
+            foreach (QueueMessage message in receivedMessages)
             {
-                // Receive and process 20 messages
-                QueueMessage[] receivedMessages = _queueClient.ReceiveMessages(20, TimeSpan.FromMinutes(5));
+                var issueFromMessage = GetIssueFromMessage(message.MessageText);
 
-                foreach (QueueMessage message in receivedMessages)
+                // Process (i.e. print) the messages in less than 5 minutes
+                _logger.LogInformation($"processing message message: '{message.MessageText}'");
+
+                if (issueFromMessage.success)
                 {
-                    var issueFromMessage = GetIssueFromMessage(message.MessageText);
-
-                    // Process (i.e. print) the messages in less than 5 minutes
-                    _logger.LogInformation($"processing message message: '{message.MessageText}'");
-
-                    if (issueFromMessage.success)
-                    {
-                        var isMissingAreaLabel = await IsMissingAreaLabel(issueFromMessage.owner, issueFromMessage.repo, issueFromMessage.num);
-                        //if (isMissingAreaLabel)
-                        //{
-                        //    GetPredictionTest(issueFromMessage.owner, issueFromMessage.repo, issueFromMessage.num);
-                        //}
-                        // Delete the message
-                        if (shouldDelete && !isMissingAreaLabel)
-                            await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt);
-                    }
-                    else
-                    {
-                        // Update the message contents - was missing repo info
-                        if (shouldUpdate)
-                            await _queueClient.UpdateMessageAsync(message.MessageId,
-                                    message.PopReceipt,
-                                    "Updated contents",
-                                    TimeSpan.FromSeconds(60.0)  // Make it invisible for another 60 seconds
-                                );
-                    }
+                    var isMissingAreaLabel = await IsMissingAreaLabel(issueFromMessage.owner, issueFromMessage.repo, issueFromMessage.num);
+                    //if (isMissingAreaLabel)
+                    //{
+                    //    GetPredictionTest(issueFromMessage.owner, issueFromMessage.repo, issueFromMessage.num);
+                    //}
+                    // Delete the message
+                    if (shouldDelete && !isMissingAreaLabel)
+                        await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt);
+                }
+                else
+                {
+                    // Update the message contents - was missing repo info
+                    if (shouldUpdate)
+                        await _queueClient.UpdateMessageAsync(message.MessageId,
+                                message.PopReceipt,
+                                "Updated contents",
+                                TimeSpan.FromSeconds(60.0)  // Make it invisible for another 60 seconds
+                            );
                 }
             }
         }
@@ -150,12 +129,12 @@ namespace IssueLabeler.Shared
         {
             await Task.Delay(1);
             var issuesPending = new HashSet<(string, string, int)>();
-            
+
             // Instantiate a QueueClient which will be used to manipulate the queue
             if (_queueClient == null)
             {
                 // Instantiate a QueueClient which will be used to create and manipulate the queue
-                _queueClient = GetQueueClient(_queueName);
+                _queueClient = GetQueueClient();
 
                 // Create the queue if it doesn't already exist
                 _queueClient.CreateIfNotExists();
@@ -193,8 +172,13 @@ namespace IssueLabeler.Shared
             return issuesPending;
         }
 
-        private QueueClient GetQueueClient(string queueName)
+        private QueueClient GetQueueClient(string queueName = null)
         {
+            if (queueName == null)
+            {
+                return new QueueClient(_queueAccountUri, new DefaultAzureCredential());
+            }
+
             var builder = new UriBuilder(_queueAccountUri);
             builder.Path = queueName;
             return new QueueClient(builder.Uri, new DefaultAzureCredential());
@@ -203,9 +187,8 @@ namespace IssueLabeler.Shared
         public async Task CleanupQueue()
         {
             await Task.Delay(1);
-            CreateQueue(_queueName);
             Interlocked.Increment(ref count);
-            await CleanupMessages(_queueName);
+            await CleanupMessages();
         }
 
         private (string owner, string repo, int num, bool success) GetIssueFromMessage(string message)
@@ -223,9 +206,6 @@ namespace IssueLabeler.Shared
             }
             return (default, default, default, false);
         }
-        private int count = 0;
-        private readonly string _queueName;
-        private readonly Uri _queueAccountUri;
 
         public Task InsertMessageTask(string msg)
         {
@@ -237,9 +217,8 @@ namespace IssueLabeler.Shared
         private async Task InsertMessageAsync(string msg)
         {
             await Task.Delay(1);
-            CreateQueue(_queueName);
             Interlocked.Increment(ref count);
-            InsertMessage(_queueName, $"{count} - {DateTimeOffset.Now} - {msg}");
+            InsertMessage($"{count} - {DateTimeOffset.Now} - {msg}");
         }
     }
 }

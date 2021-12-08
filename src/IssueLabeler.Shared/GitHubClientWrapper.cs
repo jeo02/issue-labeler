@@ -18,7 +18,6 @@ namespace IssueLabeler.Shared
         private readonly ILogger<GitHubClientWrapper> _logger;
         private GitHubClient _client;
         private readonly GitHubClientFactory _gitHubClientFactory;
-        private readonly bool _skipAzureKeyVault;
 
         public GitHubClientWrapper(
             ILogger<GitHubClientWrapper> logger,
@@ -37,7 +36,7 @@ namespace IssueLabeler.Shared
         {
             if (_client == null)
             {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
             }
             Octokit.Issue iop = null;
             try
@@ -47,7 +46,7 @@ namespace IssueLabeler.Shared
             catch (Exception ex)
             {
                 _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
                 iop = await _client.Issue.Get(owner, repo, number);
             }
             return iop;
@@ -57,7 +56,7 @@ namespace IssueLabeler.Shared
         {
             if (_client == null)
             {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
             }
             Octokit.PullRequest iop = null;
             try
@@ -67,7 +66,7 @@ namespace IssueLabeler.Shared
             catch (Exception ex)
             {
                 _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
                 iop = await _client.PullRequest.Get(owner, repo, number);
             }
             return iop;
@@ -77,7 +76,7 @@ namespace IssueLabeler.Shared
         {
             if (_client == null)
             {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
             }
             IReadOnlyList<PullRequestFile> prFiles = null;
             try
@@ -88,7 +87,7 @@ namespace IssueLabeler.Shared
             catch (Exception ex)
             {
                 _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
                 prFiles = await _client.PullRequest.Files(owner, repo, number);
             }
             return prFiles;
@@ -98,7 +97,7 @@ namespace IssueLabeler.Shared
         {
             if (_client == null)
             {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
             }
             try
             {
@@ -107,7 +106,7 @@ namespace IssueLabeler.Shared
             catch (Exception ex)
             {
                 _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
                 await _client.Issue.Update(owner, repo, number, issueUpdate);
             }
         }
@@ -118,7 +117,7 @@ namespace IssueLabeler.Shared
         {
             if (_client == null)
             {
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
             }
             try
             {
@@ -127,7 +126,7 @@ namespace IssueLabeler.Shared
             catch (Exception ex)
             {
                 _logger.LogError($"ex was of type {ex.GetType()}, message: {ex.Message}");
-                _client = await _gitHubClientFactory.CreateAsync(_skipAzureKeyVault);
+                _client = await _gitHubClientFactory.CreateAsync();
                 await _client.Issue.Comment.Create(owner, repo, number, comment);
             }
         }

@@ -6,6 +6,7 @@
     <SignAssembly>false</SignAssembly>
     <ExcludeFromSourceBuild>true</ExcludeFromSourceBuild>
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    <UserSecretsId>5f875e41-847f-4e84-be44-a03bbb45703c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

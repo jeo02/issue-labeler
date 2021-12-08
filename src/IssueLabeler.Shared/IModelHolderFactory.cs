@@ -1,5 +1,4 @@
-﻿using Hubbup.MikLabelModel;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -37,7 +36,7 @@ namespace IssueLabeler.Shared.Models
         private bool IsConfigured(string repo)
         {
             // the following four configuration values are per repo values.
-            string configSection = $"IssueModel:{repo}:PathPrefix";
+            string configSection = $"IssueModel:{repo}:BlobName";
             if (!string.IsNullOrEmpty(_configuration[configSection]))
             {
                 configSection = $"IssueModel:{repo}:BlobName";

@@ -19,7 +19,7 @@ builder.Services.AddSingleton<ILabeler, Labeler>();
 builder.Services.AddAzureClients(
     factoryBuilder =>
     {
-        factoryBuilder.AddBlobServiceClient(builder.Configuration["QConnectionString"]);
+        factoryBuilder.AddBlobServiceClient(builder.Configuration["BlobAccountUri"]);
     });
 
 var app = builder.Build();

@@ -15,38 +15,42 @@ namespace IssueLabeler.Shared
             _configuration = configuration;
         }
 
-        public async Task<GitHubClient> CreateAsync(bool localDev)
+        public async Task<GitHubClient> CreateAsync()
         {
             // See: https://octokitnet.readthedocs.io/en/latest/github-apps/ for details.
 
-            var appId = Convert.ToInt32(_configuration["GitHubAppId"]);
-            string privateKey;
-            if (localDev)
+            string localDevPAT = _configuration["GitHubDeveloperPAT"];
+            if (localDevPAT != null)
             {
-                privateKey = File.ReadAllText(_configuration["PemFilePath"]);
+                return new GitHubClient(new ProductHeaderValue("GHNotif"))
+                {
+                    Credentials = new Credentials(localDevPAT)
+                };
             }
             else
             {
+                var appId = Convert.ToInt32(_configuration["GitHubAppId"]);
                 SecretClient secretClient = new SecretClient(new Uri(_configuration["KeyVaultUri"]), new DefaultAzureCredential());
                 KeyVaultSecret secret = await secretClient.GetSecretAsync(_configuration["AppSecretName"]).ConfigureAwait(false);
-                privateKey = secret.Value;
-            }
+                string privateKey = secret.Value;
 
-            var privateKeySource = new PlainStringPrivateKeySource(privateKey);
-            var generator = new GitHubJwtFactory(
-                privateKeySource,
-                new GitHubJwtFactoryOptions
-                {
-                    AppIntegrationId = appId,
-                    ExpirationSeconds = 8 * 60 // 600 is apparently too high
+
+                var privateKeySource = new PlainStringPrivateKeySource(privateKey);
+                var generator = new GitHubJwtFactory(
+                    privateKeySource,
+                    new GitHubJwtFactoryOptions
+                    {
+                        AppIntegrationId = appId,
+                        ExpirationSeconds = 8 * 60 // 600 is apparently too high
                 });
-            var token = generator.CreateEncodedJwtToken();
+                var token = generator.CreateEncodedJwtToken();
 
-            var client = CreateForToken(token, AuthenticationType.Bearer);
-            await client.GitHubApps.GetAllInstallationsForCurrent();
-            var installationTokenResult = await client.GitHubApps.CreateInstallationToken(long.Parse(_configuration["InstallationId"]));
+                var client = CreateForToken(token, AuthenticationType.Bearer);
+                await client.GitHubApps.GetAllInstallationsForCurrent();
+                var installationTokenResult = await client.GitHubApps.CreateInstallationToken(long.Parse(_configuration["InstallationId"]));
 
-            return CreateForToken(installationTokenResult.Token, AuthenticationType.Oauth);
+                return CreateForToken(installationTokenResult.Token, AuthenticationType.Oauth);
+            }
         }
 
         private static GitHubClient CreateForToken(string token, AuthenticationType authenticationType)

@@ -13,18 +13,18 @@ using System.Threading.Tasks;
 namespace Microsoft.DotNet.GitHub.IssueLabeler
 {
     [Route("api/WebhookIssue")]
-    public class WebhookIssueController : Controller
+    public class IssueLabelerController : Controller
     {
         private ILabeler _labeler { get; set; }
 
-        private ILogger<WebhookIssueController> Logger { get; set; }
+        private ILogger<IssueLabelerController> Logger { get; set; }
         private readonly IModelHolderFactory _modelHolderFactory;
         private readonly IBackgroundTaskQueue _backgroundTaskQueue;
         private string _owner;
 
-        public WebhookIssueController(
+        public IssueLabelerController(
             ILabeler labeler,
-            ILogger<WebhookIssueController> logger,
+            ILogger<IssueLabelerController> logger,
             IConfiguration configuration,
             IModelHolderFactory modelHolderFactory,
             IBackgroundTaskQueue backgroundTaskQueue)

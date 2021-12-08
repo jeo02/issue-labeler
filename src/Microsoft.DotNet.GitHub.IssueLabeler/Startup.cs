@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Hubbup.MikLabelModel;
 using IssueLabeler.Shared;
 using IssueLabeler.Shared.Models;
 using Microsoft.AspNetCore.Builder;
@@ -36,10 +35,11 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             services.AddSingleton<IGitHubClientWrapper, GitHubClientWrapper>();
             services.AddSingleton<IModelHolderFactory, ModelHolderFactory>();
             services.AddSingleton<IDiffHelper, DiffHelper>();
+            services.AddSingleton<IQueueHelper, QueueHelper>();
             services.AddSingleton<ILabeler, Labeler>();
             services.AddAzureClients(
                 builder => {
-                    builder.AddBlobServiceClient(Configuration["QConnectionString"]);
+                    builder.AddBlobServiceClient(Configuration["BlobAccountUri"]);
                 });
         }
 
