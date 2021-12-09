@@ -1,4 +1,5 @@
 using IssueLabeler.Shared;
+using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Azure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IQueueHelper, QueueHelper>();
 builder.Services.AddSingleton<IGitHubClientWrapper, GitHubClientWrapper>();
 builder.Services.AddSingleton<IDiffHelper, DiffHelper>();
+builder.Services.AddSingleton<IModelHolderFactory, ModelHolderFactory>();
 builder.Services.AddSingleton<ILabeler, Labeler>();
 builder.Services.AddAzureClients(
     factoryBuilder =>
