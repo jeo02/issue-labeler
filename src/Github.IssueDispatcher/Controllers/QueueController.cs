@@ -1,4 +1,4 @@
-﻿using GitHub.IssueDispatcher.Models;
+﻿using Hubbup.MikLabelModel;
 using IssueLabeler.Shared;
 using Microsoft.AspNetCore.Mvc;
 

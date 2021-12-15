@@ -27,7 +27,8 @@ namespace IssueLabeler.Shared
         private readonly string _prModelBlobName;
         private readonly string _issueModelBlobName;
         private readonly ILogger _logger;
-        private int _loadRequested;        private bool IsPrModelPathDownloaded => (UseIssuesForPrsToo && IsIssueModelPathDownloaded) || File.Exists(PrPath);
+        private int _loadRequested;    
+        private bool IsPrModelPathDownloaded => (UseIssuesForPrsToo && IsIssueModelPathDownloaded) || File.Exists(PrPath);
         private bool IsIssueModelPathDownloaded => File.Exists(IssuePath);
         private string PrPath;
         private string IssuePath;

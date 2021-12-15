@@ -1,3 +1,4 @@
+using Hubbup.MikLabelModel;
 using IssueLabeler.Shared;
 using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Azure;

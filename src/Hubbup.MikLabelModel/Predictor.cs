@@ -9,17 +9,21 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Hubbup.MikLabelModel
 {
     public static class Predictor
     {
-        public static LabelSuggestion Predict(IssueModel issue, ILogger logger, IModelHolder modelHolder)
+        private static SemaphoreSlim sem = new SemaphoreSlim(1);
+
+        public static Task<LabelSuggestion> Predict(IssueModel issue, ILogger logger, IModelHolder modelHolder)
         {
             return Predict(issue, modelHolder.IssuePredEngine, logger);
         }
 
-        public static LabelSuggestion Predict(PrModel issue, ILogger logger, IModelHolder modelHolder)
+        public static Task<LabelSuggestion> Predict(PrModel issue, ILogger logger, IModelHolder modelHolder)
         {
             if (modelHolder.UseIssuesForPrsToo)
             {
@@ -28,7 +32,7 @@ namespace Hubbup.MikLabelModel
             return Predict(issue, modelHolder.PrPredEngine, logger);
         }
 
-        private static LabelSuggestion Predict<T>(
+        private static async Task<LabelSuggestion> Predict<T>(
             T issueOrPr,
             PredictionEngine<T, GitHubIssuePrediction> predEngine,
             ILogger logger)
@@ -38,8 +42,22 @@ namespace Hubbup.MikLabelModel
             {
                 throw new InvalidOperationException("expected prediction engine loaded.");
             }
+            GitHubIssuePrediction prediction;
+            bool acquired = false;
 
-            GitHubIssuePrediction prediction = predEngine.Predict(issueOrPr);
+            try
+            {
+                await sem.WaitAsync();
+                acquired = true;
+                prediction = predEngine.Predict(issueOrPr);
+            }
+            finally
+            {
+                if (acquired)
+                {
+                    sem.Release();
+                }
+            }
 
             VBuffer<ReadOnlyMemory<char>> slotNames = default;
             predEngine.OutputSchema[nameof(GitHubIssuePrediction.Score)].GetSlotNames(ref slotNames);
@@ -48,7 +66,7 @@ namespace Hubbup.MikLabelModel
             var labelPredictions = MikLabelerPredictor.GetBestThreePredictions(probabilities, slotNames);
 
             float maxProbability = probabilities.Max();
-            logger.LogInformation($"# {maxProbability} {prediction.Area} for #{issueOrPr.Number} {issueOrPr.Title}");
+            logger.LogInformation($"MaxProbability: {maxProbability} for #{issueOrPr.Number} - '{issueOrPr.Title}'");
             return new LabelSuggestion
             {
                 LabelScores = labelPredictions,

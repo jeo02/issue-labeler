@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Hubbup.MikLabelModel;
 using IssueLabeler.Shared;
 using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +17,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace IssueLabeler.Shared
+namespace Hubbup.MikLabelModel
 {
     public class Labeler : ILabeler
     {
@@ -83,13 +82,13 @@ namespace IssueLabeler.Shared
             if (isPr && !_useIssueLabelerForPrsToo)
             {
                 var prModel = await CreatePullRequest(owner, repo, iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-                labelSuggestion = Predictor.Predict(prModel, _logger, modelHolder);
+                labelSuggestion = await Predictor.Predict(prModel, _logger, modelHolder);
                 _logger.LogInformation("predicted with pr model the new way");
                 _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
                 return labelSuggestion;
             }
             var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-            labelSuggestion = Predictor.Predict(issueModel, _logger, modelHolder);
+            labelSuggestion = await Predictor.Predict(issueModel, _logger, modelHolder);
             _logger.LogInformation("predicted with issue model the new way");
             _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
             return labelSuggestion;

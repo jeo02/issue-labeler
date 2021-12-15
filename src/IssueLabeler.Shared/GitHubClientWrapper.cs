@@ -21,7 +21,6 @@ namespace IssueLabeler.Shared
 
         public GitHubClientWrapper(
             ILogger<GitHubClientWrapper> logger,
-            IConfiguration configuration,
             GitHubClientFactory gitHubClientFactory)
         {
             _gitHubClientFactory = gitHubClientFactory;
