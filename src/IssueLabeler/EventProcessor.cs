@@ -67,7 +67,7 @@ namespace IssueLabeler
 
                         // In order to avoid competing with other bots, we only want to respond to 'labeled' events where 
                         // where the label is "customer-reported".
-                        if (payload.Action == "labeled" && payload.Issue.Labels.Any(l => l.Name == "customer-reported"))
+                        if (payload.Action == "labeled" && payload.Label?.Name == "customer-reported")
                         {
                             // Process the issue
                             var repoInfo = payload.Repository.FullName.Split('/', 2);

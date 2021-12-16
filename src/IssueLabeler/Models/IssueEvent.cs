@@ -15,5 +15,8 @@ namespace IssueLabeler.Models
 
         [JsonPropertyName("sender")]
         public User Sender { get; set; }
+
+        [JsonPropertyName("label")]
+        public Label? Label { get; set; }
     }
 }
