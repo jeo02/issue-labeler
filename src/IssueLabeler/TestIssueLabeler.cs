@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Hubbup.MikLabelModel;
 using System.Text.Json;
 using System.Linq;
+using IssueLabeler.Shared.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace IssueLabeler
 {
@@ -26,17 +28,11 @@ namespace IssueLabeler
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-
             string name = req.Query["name"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var data = JsonSerializer.Deserialize<WebHookModel>(requestBody);
-
-            //string responseMessage = string.IsNullOrEmpty(name)
-            //? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-            //: $"Hello, {name}. This HTTP triggered function executed successfully.";
-
+            log.LogInformation($"TestIssueLabeler invoked with message: {requestBody}");
             await _labeler.ApplyLabelPrediction(data.owner, data.repo, data.id, shouldUpdate);
             return new OkObjectResult("success");
         }

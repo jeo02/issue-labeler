@@ -20,10 +20,6 @@ namespace IssueLabeler
 
         public IssueLabeler(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config)
         {
-            while (!Debugger.IsAttached)
-            {
-                Task.Delay(1000).GetAwaiter().GetResult();
-            }
             _labeler = labeler;
             var owner = config["RepoOwner"];
             var repos = config["RepoNames"];

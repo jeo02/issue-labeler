@@ -4,11 +4,12 @@
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": false,
-        "excludedTypes": "Request"
       }
     },
-    "fileLoggingMode": "debugOnly",
+    "fileLoggingMode": "always",
     "logLevel": {
+      "default": "Information",
+      "IssueLabeler.Shared.ModelHolder": "Information",
       "IssueLabeler.Shared.GitHubClientWrapper": "Information",
       "Hubbup.MikLabelModel.LabelerLite": "Information",
       "console": "Information",

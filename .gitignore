@@ -293,3 +293,7 @@ __pycache__/
 *.tsv
 /__blobstorage__
 /__*__.json
+
+# Deploy
+*Zip Deploy.json
+ServiceDependencies/

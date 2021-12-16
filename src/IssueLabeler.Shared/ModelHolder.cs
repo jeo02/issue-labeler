@@ -6,6 +6,7 @@ using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
+using System.ComponentModel;
 
 namespace IssueLabeler.Shared
 {
@@ -27,11 +28,7 @@ namespace IssueLabeler.Shared
         private readonly string _prModelBlobName;
         private readonly string _issueModelBlobName;
         private readonly ILogger _logger;
-        private int _loadRequested;    
-        private bool IsPrModelPathDownloaded => (UseIssuesForPrsToo && IsIssueModelPathDownloaded) || File.Exists(PrPath);
-        private bool IsIssueModelPathDownloaded => File.Exists(IssuePath);
-        private string PrPath;
-        private string IssuePath;
+        private int _loadRequested;
         private int timesIssueDownloaded = 0;
         private int timesPrDownloaded = 0;
         private Uri _blobContainerUri;
@@ -50,31 +47,17 @@ namespace IssueLabeler.Shared
             _blobContainerUri = new Uri(new Uri(configuration["BlobAccountUri"]), configuration["BlobContainerName"]);
 
             // the following four configuration values are per repo values.
-            string configSection = $"IssueModel:{repo}:PathPrefix";
-            if (string.IsNullOrEmpty(configuration[configSection]))
-            {
-                throw new ArgumentNullException($"repo: {repo}, missing config.");
-            }
-            IssuePath = Path.Combine(Directory.GetCurrentDirectory(), $"{configuration[configSection]}.zip");
-
-            configSection = $"IssueModel:{repo}:BlobName";
+            var configSection = $"IssueModel:{repo}:BlobName";
             if (string.IsNullOrEmpty(configuration[configSection]))
             {
                 throw new ArgumentNullException($"repo: {repo}, missing config..");
             }
             _issueModelBlobName = configuration[configSection];
 
-            configSection = $"PrModel:{repo}:PathPrefix";
+            configSection = $"PrModel:{repo}:BlobName";
             if (!string.IsNullOrEmpty(configuration[configSection]))
             {
-                PrPath = Path.Combine(Directory.GetCurrentDirectory(), $"{configuration[configSection]}.zip");
-
                 // has both pr and issue config - allowed
-                configSection = $"PrModel:{repo}:BlobName";
-                if (string.IsNullOrEmpty(configuration[configSection]))
-                {
-                    throw new ArgumentNullException($"repo: {repo}, missing config...");
-                }
                 _prModelBlobName = configuration[configSection];
             }
             else
@@ -96,82 +79,29 @@ namespace IssueLabeler.Shared
         {
             _logger.LogInformation($"! {nameof(LoadEnginesAsync)} called.");
             Interlocked.Increment(ref _loadRequested);
-            if (IsIssueEngineLoaded && (UseIssuesForPrsToo || IsPrEngineLoaded))
+            if (IsIssueEngineLoaded)
             {
                 _logger.LogInformation($"! engines were already loaded.");
                 return;
             }
-            await EnsureModelPathsAvailableAsync();
+            //await EnsureModelPathsAvailableAsync();
             if (!IsIssueEngineLoaded)
             {
                 _logger.LogInformation($"! loading {nameof(IssuePredEngine)}.");
                 MLContext mlContext = new MLContext();
-                ITransformer mlModel = mlContext.Model.Load(IssuePath, out DataViewSchema _);
-                IssuePredEngine = mlContext.Model.CreatePredictionEngine<IssueModel, GitHubIssuePrediction>(mlModel);
+                BlobContainerClient container = new BlobContainerClient(_blobContainerUri, new DefaultAzureCredential());
+                var condition = new BlobRequestConditions();
+                var blockBlob = container.GetBlobClient(_issueModelBlobName);
+                _logger.LogInformation($"Loading model from {_issueModelBlobName} from container {container.Uri}");
+                using (var stream = new MemoryStream())
+                {
+                    await blockBlob.DownloadToAsync(stream, condition, new StorageTransferOptions() { });
+                    _logger.LogInformation($"downloaded ml model");
+                    var mlModel = mlContext.Model.Load(stream, out DataViewSchema _);
+                    IssuePredEngine = mlContext.Model.CreatePredictionEngine<IssueModel, GitHubIssuePrediction>(mlModel);
+                    PrPredEngine = mlContext.Model.CreatePredictionEngine<PrModel, GitHubIssuePrediction>(mlModel);
+                }
                 _logger.LogInformation($"! {nameof(IssuePredEngine)} loaded.");
-            }
-            if (!UseIssuesForPrsToo && !IsPrEngineLoaded)
-            {
-                _logger.LogInformation($"! loading {nameof(PrPredEngine)}.");
-                MLContext mlContext = new MLContext();
-                ITransformer mlModel = mlContext.Model.Load(PrPath, out DataViewSchema _);
-                PrPredEngine = mlContext.Model.CreatePredictionEngine<PrModel, GitHubIssuePrediction>(mlModel);
-                _logger.LogInformation($"! {nameof(PrPredEngine)} loaded.");
-            }
-        }
-
-        private async Task EnsureModelPathsAvailableAsync()
-        {
-            _logger.LogInformation($"! {nameof(EnsureModelPathsAvailableAsync)} called.");
-            if (IsIssueModelPathDownloaded && IsPrModelPathDownloaded)
-            {
-                return;
-            }
-
-            _logger.LogInformation($"! calling {nameof(BlobContainerClient)}.");
-            BlobContainerClient container = new BlobContainerClient(_blobContainerUri, new DefaultAzureCredential());
-            container.CreateIfNotExists(PublicAccessType.Blob);
-
-            try
-            {
-                if (!IsIssueModelPathDownloaded)
-                {
-                    _logger.LogInformation($"! downloading to {IssuePath}.");
-                    await DownloadModelAsync(_logger, container, _issueModelBlobName, IssuePath);
-                    Interlocked.Increment(ref timesIssueDownloaded);
-                }
-                if (!IsPrModelPathDownloaded)
-                {
-                    _logger.LogInformation($"! downloading to {PrPath}.");
-                    await DownloadModelAsync(_logger, container, _prModelBlobName, PrPath);
-                    Interlocked.Increment(ref timesPrDownloaded);
-                }
-                _logger.LogInformation($"! downloaded version of ml model available at {Directory.GetCurrentDirectory()}.");
-                _logger.LogInformation($"! {nameof(timesPrDownloaded)}: {timesPrDownloaded}, {nameof(timesIssueDownloaded)}: {timesIssueDownloaded}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("error dl of labeler model. " + ex.Message);
-            }
-        }
-
-        private static async Task DownloadModelAsync(ILogger _logger, BlobContainerClient container, string blobName, string localPath)
-        {
-            if (!File.Exists(localPath))
-            {
-                var condition = new BlobRequestConditions()
-                { };// TODO { IfModifiedSince = lastUpdated };
-                var blockBlob = container.GetBlobClient(blobName);
-
-                BlobProperties properties = await blockBlob.GetPropertiesAsync();
-                // TODO check properties.LastModified
-                _logger.LogInformation($"conditionally downloading {blobName}");
-                using (var fileStream = System.IO.File.OpenWrite(localPath))
-                {
-                    await blockBlob.DownloadToAsync(fileStream, condition, new StorageTransferOptions() { });
-                }
-                // TODO: new FileStream, pass in buffer size 1MB rather than default 1KB
-                _logger.LogInformation($"downloaded ml model");
             }
         }
     }
