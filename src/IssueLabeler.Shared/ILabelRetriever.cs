@@ -13,7 +13,7 @@ namespace IssueLabeler.Shared
         bool SkipPrediction { get; }
 
         string CommentFor(string label);
-        HashSet<string> GetNonAreaLabelsForIssueAsync(IssueModel issue);
+        HashSet<string> GetNonAreaLabelsForIssueAsync(GitHubIssue issue);
         bool OkToIgnoreThresholdFor(string chosenLabel);
         bool PreferManualLabelingFor(string chosenLabel);
         bool ShouldSkipUpdatingLabels(string issueAuthor);

@@ -7,8 +7,11 @@ namespace IssueLabeler.Shared
         public bool AddDelayBeforeUpdatingLabels { get => _repo.Equals("dotnet-api-docs", StringComparison.OrdinalIgnoreCase); }
         public bool OkToAddUntriagedLabel { get => !_repo.Equals("dotnet-api-docs", StringComparison.OrdinalIgnoreCase); }
         public bool CommentWhenMissingAreaLabel { get => !_repo.Equals("deployment-tools", StringComparison.OrdinalIgnoreCase); }
-        public bool SkipPrediction { get => 
-                _repo.Equals("deployment-tools", StringComparison.OrdinalIgnoreCase); }
+        public bool SkipPrediction
+        {
+            get =>
+_repo.Equals("deployment-tools", StringComparison.OrdinalIgnoreCase);
+        }
 
         public bool AllowTakingLinkedIssueLabel
         {
@@ -66,20 +69,14 @@ namespace IssueLabeler.Shared
                 issueAuthor.Equals("dotnet-bot", StringComparison.OrdinalIgnoreCase);
         }
 
-        public HashSet<string> GetNonAreaLabelsForIssueAsync(IssueModel issue)
+        public HashSet<string> GetNonAreaLabelsForIssueAsync(GitHubIssue issue)
         {
             var lcs = new HashSet<string>();
-            if (issue is PrModel pr)
+            if (issue is GitHubPullRequest pr)
             {
                 if (_owner.Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
                     _repo.Equals("runtime", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (pr.ShouldAddDoc)
-                    {
-                        //_logger.LogInformation($"! PR number {pr.Number} should be a documentation PR as it adds lines to a ref *cs file.");
-                        string shouldAddDoc = "new-api-needs-documentation";
-                        lcs.Add(shouldAddDoc);
-                    }
                     if (pr.Author.Equals("monojenkins"))
                     {
                         lcs.Add("mono-mirror");

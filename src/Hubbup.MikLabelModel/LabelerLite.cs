@@ -96,11 +96,11 @@ namespace Hubbup.MikLabelModel
             _logger.LogInformation($"Success: Issue {owner}/{repo}#{number} tagged with label '{topChoice.LabelName}'");
         }
 
-        private static IssueModel CreateIssue(int number, string title, string body, string[] userMentions, string author)
+        private static GitHubIssue CreateIssue(int number, string title, string body, string[] userMentions, string author)
         {
-            return new IssueModel()
+            return new GitHubIssue()
             {
-                Number = number,
+                ID = number,
                 Title = title,
                 Description = body,
                 IsPR = 0,

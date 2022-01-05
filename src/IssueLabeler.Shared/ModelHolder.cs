@@ -15,8 +15,8 @@ namespace IssueLabeler.Shared
         bool IsPrEngineLoaded { get; }
         bool LoadRequested { get; }
         bool IsIssueEngineLoaded { get; }
-        PredictionEngine<IssueModel, GitHubIssuePrediction> IssuePredEngine { get; }
-        PredictionEngine<PrModel, GitHubIssuePrediction> PrPredEngine { get; }
+        PredictionEngine<GitHubIssue, GitHubIssuePrediction> IssuePredEngine { get; }
+        PredictionEngine<GitHubPullRequest, GitHubIssuePrediction> PrPredEngine { get; }
         Task LoadEnginesAsync();
         bool UseIssuesForPrsToo { get; }
     }
@@ -36,8 +36,8 @@ namespace IssueLabeler.Shared
         public bool IsPrEngineLoaded => (PrPredEngine != null);
         public bool IsIssueEngineLoaded => (IssuePredEngine != null);
         public bool UseIssuesForPrsToo { get; private set; }
-        public PredictionEngine<IssueModel, GitHubIssuePrediction> IssuePredEngine { get; private set; } = null;
-        public PredictionEngine<PrModel, GitHubIssuePrediction> PrPredEngine { get; private set; } = null;
+        public PredictionEngine<GitHubIssue, GitHubIssuePrediction> IssuePredEngine { get; private set; } = null;
+        public PredictionEngine<GitHubPullRequest, GitHubIssuePrediction> PrPredEngine { get; private set; } = null;
 
         public ModelHolder(ILogger logger, IConfiguration configuration, string repo)
         {
@@ -84,7 +84,6 @@ namespace IssueLabeler.Shared
                 _logger.LogInformation($"! engines were already loaded.");
                 return;
             }
-            //await EnsureModelPathsAvailableAsync();
             if (!IsIssueEngineLoaded)
             {
                 _logger.LogInformation($"! loading {nameof(IssuePredEngine)}.");
@@ -95,11 +94,12 @@ namespace IssueLabeler.Shared
                 _logger.LogInformation($"Loading model from {_issueModelBlobName} from container {container.Uri}");
                 using (var stream = new MemoryStream())
                 {
+                    stream.Position = 0;
                     await blockBlob.DownloadToAsync(stream, condition, new StorageTransferOptions() { });
                     _logger.LogInformation($"downloaded ml model");
                     var mlModel = mlContext.Model.Load(stream, out DataViewSchema _);
-                    IssuePredEngine = mlContext.Model.CreatePredictionEngine<IssueModel, GitHubIssuePrediction>(mlModel);
-                    PrPredEngine = mlContext.Model.CreatePredictionEngine<PrModel, GitHubIssuePrediction>(mlModel);
+                    IssuePredEngine = mlContext.Model.CreatePredictionEngine<GitHubIssue, GitHubIssuePrediction>(mlModel);
+                    PrPredEngine = mlContext.Model.CreatePredictionEngine<GitHubPullRequest, GitHubIssuePrediction>(mlModel);
                 }
                 _logger.LogInformation($"! {nameof(IssuePredEngine)} loaded.");
             }

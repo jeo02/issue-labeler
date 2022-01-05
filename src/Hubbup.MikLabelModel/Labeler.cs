@@ -356,7 +356,7 @@ namespace Hubbup.MikLabelModel
             }
             string body = iop.Body ?? string.Empty;
             var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
-            IssueModel iopModel = null;
+            GitHubIssue iopModel = null;
             if (iop.PullRequest != null)
             {
                 iopModel = await CreatePullRequest(owner, repo, iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
@@ -368,11 +368,11 @@ namespace Hubbup.MikLabelModel
             return labelRetriever.GetNonAreaLabelsForIssueAsync(iopModel);
         }
 
-        private static IssueModel CreateIssue(int number, string title, string body, string[] userMentions, string author)
+        private static GitHubIssue CreateIssue(int number, string title, string body, string[] userMentions, string author)
         {
-            return new IssueModel()
+            return new GitHubIssue()
             {
-                Number = number,
+                ID = number,
                 Title = title,
                 Description = body,
                 IsPR = 0,
@@ -382,11 +382,11 @@ namespace Hubbup.MikLabelModel
             };
         }
 
-        private async Task<PrModel> CreatePullRequest(string owner, string repo, int number, string title, string body, string[] userMentions, string author)
+        private async Task<GitHubPullRequest> CreatePullRequest(string owner, string repo, int number, string title, string body, string[] userMentions, string author)
         {
-            var pr = new PrModel()
+            var pr = new GitHubPullRequest()
             {
-                Number = number,
+                ID = number,
                 Title = title,
                 Description = body,
                 IsPR = 1,
@@ -404,16 +404,7 @@ namespace Hubbup.MikLabelModel
                 pr.FileExtensions = string.Join(' ', segmentedDiff.Extensions);
                 pr.Folders = _diffHelper.FlattenWithWhitespace(segmentedDiff.Folders);
                 pr.FolderNames = _diffHelper.FlattenWithWhitespace(segmentedDiff.FolderNames);
-                try
-                {
-                    pr.ShouldAddDoc = await DoesPrAddNewApiAsync(owner, repo, pr.Number);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation("! problem with new approach: " + ex.Message);
-                    pr.ShouldAddDoc = segmentedDiff.AddDocInfo;
-                }
-            }
+             }
             pr.FileCount = prFiles.Count;
             return pr;
         }

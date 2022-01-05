@@ -29,10 +29,17 @@ namespace IssueLabeler
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ILogger log)
         {
             string name = req.Query["name"];
-
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var data = JsonSerializer.Deserialize<WebHookModel>(requestBody);
-            log.LogInformation($"TestIssueLabeler invoked with message: {requestBody}");
+            WebHookModel data = null;
+            if (req.Method == "POST")
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                data = JsonSerializer.Deserialize<WebHookModel>(requestBody);
+                log.LogInformation($"TestIssueLabeler invoked with message: {requestBody}");
+            }
+            else
+            {
+                data = new WebHookModel() { id = 23600, owner = "Azure", repo = "azure-sdk-for-net" };
+            }
             await _labeler.ApplyLabelPrediction(data.owner, data.repo, data.id, shouldUpdate);
             return new OkObjectResult("success");
         }
