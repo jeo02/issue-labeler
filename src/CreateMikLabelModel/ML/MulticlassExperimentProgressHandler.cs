@@ -13,22 +13,26 @@ namespace CreateMikLabelModel.ML
     /// </summary>
     public class MulticlassExperimentProgressHandler : IProgress<RunDetail<MulticlassClassificationMetrics>>
     {
+        private readonly LoggingHelper _consoleHelper;
         private int _iterationIndex;
+
+        public MulticlassExperimentProgressHandler(ILogger logger) => _consoleHelper = new LoggingHelper(logger);
+
 
         public void Report(RunDetail<MulticlassClassificationMetrics> iterationResult)
         {
             if (_iterationIndex++ == 0)
             {
-                ConsoleHelper.PrintMulticlassClassificationMetricsHeader();
+                _consoleHelper.PrintMulticlassClassificationMetricsHeader();
             }
 
             if (iterationResult.Exception != null)
             {
-                ConsoleHelper.PrintIterationException(iterationResult.Exception);
+                _consoleHelper.PrintIterationException(iterationResult.Exception);
             }
             else
             {
-                ConsoleHelper.PrintIterationMetrics(_iterationIndex, iterationResult.TrainerName,
+                _consoleHelper.PrintIterationMetrics(_iterationIndex, iterationResult.TrainerName,
                     iterationResult.ValidationMetrics, iterationResult.RuntimeInSeconds);
             }
         }

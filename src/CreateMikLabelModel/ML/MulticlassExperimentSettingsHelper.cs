@@ -11,9 +11,9 @@ namespace CreateMikLabelModel.ML
     public static class MulticlassExperimentSettingsHelper
     {
         public static (ColumnInferenceResults columnInference, MulticlassExperimentSettings experimentSettings) SetupExperiment(
-            MLContext mlContext, ExperimentModifier st, TrainingDataFilePaths paths, bool forPrs)
+            ILogger logger, MLContext mlContext, ExperimentModifier st, TrainingDataFilePaths paths, bool forPrs)
         {
-            var columnInference = InferColumns(mlContext, paths.TrainPath, st.LabelColumnName);
+            var columnInference = InferColumns(logger, mlContext, paths.TrainPath, st.LabelColumnName);
             var columnInformation = columnInference.ColumnInformation;
             st.ColumnSetup(columnInformation, forPrs);
 
@@ -25,10 +25,10 @@ namespace CreateMikLabelModel.ML
             experimentSettings.CancellationToken = cts.Token;
 
             // Set the cache directory to null.
-            // This will cause all models produced by AutoML to be kept in memory 
+            // This will cause all models produced by AutoML to be kept in memory
             // instead of written to disk after each run, as AutoML is training.
-            // (Please note: for an experiment on a large dataset, opting to keep all 
-            // models trained by AutoML in memory could cause your system to run out 
+            // (Please note: for an experiment on a large dataset, opting to keep all
+            // models trained by AutoML in memory could cause your system to run out
             // of memory.)
             experimentSettings.CacheDirectory = new DirectoryInfo(Path.GetTempPath());
             experimentSettings.OptimizingMetric = MulticlassClassificationMetric.MicroAccuracy;
@@ -38,9 +38,9 @@ namespace CreateMikLabelModel.ML
         /// <summary>
         /// Infer columns in the dataset with AutoML.
         /// </summary>
-        private static ColumnInferenceResults InferColumns(MLContext mlContext, string dataPath, string labelColumnName)
+        private static ColumnInferenceResults InferColumns(ILogger logger, MLContext mlContext, string dataPath, string labelColumnName)
         {
-            ConsoleHelper.ConsoleWriteHeader("=============== Inferring columns in dataset ===============");
+            new LoggingHelper(logger).ConsoleWriteHeader("=============== Inferring columns in dataset ===============");
             var columnInference = mlContext.Auto().InferColumns(dataPath, labelColumnName, groupColumns: false);
             return columnInference;
         }

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using CreateMikLabelModel;
+using IssueLabeler.Shared;
 
 namespace Azure.Sdk.LabelTrainer
 {

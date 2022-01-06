@@ -275,7 +275,7 @@ namespace CreateMikLabelModel
         ///
         public void TrainModels(TrainingDataSegment trainingFiles)
         {
-            var mlHelper = new MLHelper();
+            var mlHelper = new MLHelper(_logger);
             var stopWatch = Stopwatch.StartNew();
 
             if (!trainingFiles.Issues.SkipProcessing)
@@ -311,7 +311,7 @@ namespace CreateMikLabelModel
         ///
         public void TestModels(TrainingDataSegment trainingFiles)
         {
-            var mlHelper = new MLHelper();
+            var mlHelper = new MLHelper(_logger);
             var stopWatch = Stopwatch.StartNew();
 
             if (!trainingFiles.Issues.SkipProcessing)

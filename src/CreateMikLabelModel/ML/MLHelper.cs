@@ -12,14 +12,17 @@ namespace CreateMikLabelModel.ML
     public class MLHelper
     {
         private readonly MLContext _mLContext;
-        public MLHelper()
+        private readonly ILogger _logger;
+
+        public MLHelper(ILogger logger)
         {
             _mLContext = new MLContext(seed: 0);
+            _logger = logger;
         }
 
         public void Test(TrainingDataFilePaths files, bool forPrs)
         {
-            MulticlassExperimentHelper.TestPrediction(_mLContext, files, forPrs: forPrs);
+            MulticlassExperimentHelper.TestPrediction(_logger, _mLContext, files, forPrs: forPrs);
         }
 
         public void Train(TrainingDataFilePaths files, bool forPrs)
@@ -35,7 +38,7 @@ namespace CreateMikLabelModel.ML
 
         private void Train(ExperimentModifier settings)
         {
-            var setup = MulticlassExperimentSettingsHelper.SetupExperiment(_mLContext, settings, settings.Paths, settings.ForPrs);
+            var setup = MulticlassExperimentSettingsHelper.SetupExperiment(_logger, _mLContext, settings, settings.Paths, settings.ForPrs);
 
             try
             {
@@ -45,17 +48,17 @@ namespace CreateMikLabelModel.ML
 
                 // train once:
                 var experimentResult = MulticlassExperimentHelper.Train(
-                    _mLContext, setup.experimentSettings, new MulticlassExperimentProgressHandler(), paths, textLoader, setup.columnInference);
+                    _logger, _mLContext, setup.experimentSettings, new MulticlassExperimentProgressHandler(_logger), paths, textLoader, setup.columnInference);
 
                 // train twice
                 var refitModel = MulticlassExperimentHelper.Retrain(experimentResult,
                     "refit model",
                     new MultiFileSource(paths.TrainPath, paths.ValidatePath),
                     paths.ValidatePath,
-                    paths.FittedModelPath, textLoader, _mLContext);
+                    paths.FittedModelPath, textLoader, _logger, _mLContext);
 
                 // final train:
-                refitModel = MulticlassExperimentHelper.Retrain(_mLContext, experimentResult, setup.columnInference, paths);
+                refitModel = MulticlassExperimentHelper.Retrain(_logger, _mLContext, experimentResult, setup.columnInference, paths);
             }
             catch (Exception ex)
             {

@@ -12,42 +12,42 @@ using System.Text;
 
 namespace CreateMikLabelModel.ML
 {
-    public static class ConsoleHelper
+    internal class LoggingHelper
     {
         private const int Width = 114;
+        private readonly ILogger _logger;
 
-        internal static void PrintIterationMetrics(int iteration, string trainerName, MulticlassClassificationMetrics metrics, double? runtimeInSeconds)
+        public LoggingHelper(ILogger logger) => _logger = logger;
+
+        internal void PrintIterationMetrics(int iteration, string trainerName, MulticlassClassificationMetrics metrics, double? runtimeInSeconds)
         {
-            CreateRow($"{iteration,-4} {trainerName,-35} {metrics?.MicroAccuracy ?? double.NaN,14:F4} {metrics?.MacroAccuracy ?? double.NaN,14:F4} {runtimeInSeconds.Value,9:F1}", Width);
+            PrintRow($"{iteration,-4} {trainerName,-35} {metrics?.MicroAccuracy ?? double.NaN,14:F4} {metrics?.MacroAccuracy ?? double.NaN,14:F4} {runtimeInSeconds.Value,9:F1}", Width);
         }
 
-        internal static void PrintIterationException(Exception ex)
+        internal void PrintIterationException(Exception ex)
         {
-            Trace.WriteLine($"Exception during AutoML iteration: {ex}");
+            _logger.LogInformation($"Exception during AutoML iteration: {ex}");
         }
 
-        internal static void PrintMulticlassClassificationMetricsHeader()
+        internal void PrintMulticlassClassificationMetricsHeader()
         {
-            CreateRow($"{"",-4} {"Trainer",-35} {"MicroAccuracy",14} {"MacroAccuracy",14} {"Duration",9}", Width);
+            PrintRow($"{"",-4} {"Trainer",-35} {"MicroAccuracy",14} {"MacroAccuracy",14} {"Duration",9}", Width);
         }
 
-        private static void CreateRow(string message, int width)
+        private void PrintRow(string message, int width)
         {
-            Trace.WriteLine("|" + message.PadRight(width - 2) + "|");
+            _logger.LogInformation("|" + message.PadRight(width - 2) + "|");
         }
 
-        public static void ConsoleWriteHeader(params string[] lines)
+        public void ConsoleWriteHeader(params string[] lines)
         {
-            var defaultColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Trace.WriteLine(" ");
+            _logger.LogInformation(" ");
             foreach (var line in lines)
             {
-                Trace.WriteLine(line);
+                _logger.LogInformation(line);
             }
             var maxLength = lines.Select(x => x.Length).Max();
-            Trace.WriteLine(new string('#', maxLength));
-            Console.ForegroundColor = defaultColor;
+            _logger.LogInformation(new string('#', maxLength));
         }
 
         public static string BuildStringTable(IList<string[]> arrValues)
@@ -141,7 +141,7 @@ namespace CreateMikLabelModel.ML
                 AppendTableRows(tableRows, info.TextColumnNames, "Text");
                 AppendTableRows(tableRows, info.IgnoredColumnNames, "Ignored");
 
-                Trace.WriteLine(ConsoleHelper.BuildStringTable(tableRows));
+                Console.WriteLine(LoggingHelper.BuildStringTable(tableRows));
             }
 
             private void AppendTableRow(ICollection<string[]> tableRows,
