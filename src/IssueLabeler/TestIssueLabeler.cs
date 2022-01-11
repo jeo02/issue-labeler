@@ -15,7 +15,7 @@ namespace IssueLabeler
 {
     public class TestIssueLabeler
     {
-        private static Func<Shared.LabelSuggestion, Issue, float, bool> shouldUpdate = new ((sug, _, threshold) => sug.ModelConfigName != "ServiceLabels" && sug.LabelScores.Any(s => s.Score > threshold));
+        private static Func<Shared.LabelSuggestion, Issue, float, bool> shouldUpdate = new ((sug, _, threshold) => sug.LabelScores.Any(s => s.Score > threshold));
         private readonly ILabelerLite _labeler;
 
         public TestIssueLabeler(ILabelerLite labeler)

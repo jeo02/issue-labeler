@@ -61,14 +61,16 @@ namespace IssueLabeler
                             continue;
                         }
                         payload = JsonSerializer.Deserialize<Models.IssueEvent>(decoded);
+                        var repoInfo = payload.Repository.FullName.Split('/', 2);
 
                         // In order to avoid competing with other bots, we only want to respond to 'labeled' events where 
-                        // where the label is "customer-reported".
-                        if (payload.Action == "labeled" && payload.Label?.Name == "customer-reported")
+                        // where the label is the configured trigger (and default to "customer-reported").
+                        _config.TryGetConfigValue($"IssueModel:{repoInfo[1]}:TriggerLabel", out var triggerLabel, "customer-reported");
+
+                        if (payload.Action == "labeled" && payload.Label?.Name == triggerLabel)
                         {
                             // Process the issue
-                            var repoInfo = payload.Repository.FullName.Split('/', 2);
-                            
+
                             labeler.ApplyLabelPrediction(repoInfo[0], repoInfo[1], payload.Issue.Number, shouldLabel);
                         }
                     }
