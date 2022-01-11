@@ -39,22 +39,22 @@ namespace IssueLabeler.Shared
         public PredictionEngine<GitHubIssue, GitHubIssuePrediction> IssuePredEngine { get; private set; } = null;
         public PredictionEngine<GitHubPullRequest, GitHubIssuePrediction> PrPredEngine { get; private set; } = null;
 
-        public ModelHolder(ILogger logger, IConfiguration configuration, string repo)
+        public ModelHolder(ILogger logger, IConfiguration configuration, string repo, string modelBlobConfigName = null)
         {
             // TODO: imagine there is an array of model holders, prefixes itself with owner/repo info.
-
+            modelBlobConfigName = modelBlobConfigName ?? "BlobName";
             _logger = logger;
             _blobContainerUri = new Uri(new Uri(configuration["BlobAccountUri"]), configuration["BlobContainerName"]);
 
             // the following four configuration values are per repo values.
-            var configSection = $"IssueModel:{repo}:BlobName";
+            var configSection = $"IssueModel:{repo}:{modelBlobConfigName}";
             if (string.IsNullOrEmpty(configuration[configSection]))
             {
                 throw new ArgumentNullException($"repo: {repo}, missing config..");
             }
             _issueModelBlobName = configuration[configSection];
 
-            configSection = $"PrModel:{repo}:BlobName";
+            configSection = $"PrModel:{repo}:{modelBlobConfigName}";
             if (!string.IsNullOrEmpty(configuration[configSection]))
             {
                 // has both pr and issue config - allowed
@@ -65,7 +65,7 @@ namespace IssueLabeler.Shared
                 // has issue config only - allowed
                 UseIssuesForPrsToo = true;
 
-                configSection = $"PrModel:{repo}:BlobName";
+                configSection = $"PrModel:{repo}:{modelBlobConfigName}";
 
                 if (!string.IsNullOrEmpty(configuration[configSection]))
                 {

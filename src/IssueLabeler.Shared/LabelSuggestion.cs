@@ -6,6 +6,7 @@ namespace IssueLabeler.Shared
 {
     public class LabelSuggestion
     {
+        public string ModelConfigName { get; set; }
         public List<ScoredLabel> LabelScores { get; set; }
     }
 }

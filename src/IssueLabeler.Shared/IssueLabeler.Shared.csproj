@@ -16,9 +16,9 @@
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
-		<PackageReference Include="Microsoft.ML" Version="$(MicrosoftMLVersion)" />
+		<PackageReference Include="Microsoft.ML" Version="1.7.0" />
 		<PackageReference Include="Octokit" Version="$(OctokitVersion)" />
-		<PackageReference Include="Microsoft.Extensions.Azure" Version="1.1.0-beta.1" />
+		<PackageReference Include="Microsoft.Extensions.Azure" Version="1.1.1" />
 	</ItemGroup>
 
 </Project>

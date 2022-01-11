@@ -11,6 +11,6 @@ namespace Hubbup.MikLabelModel
 {
     public interface ILabelerLite
     {
-        Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, bool> shouldApplyLabel);
+        Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, float, bool> shouldApplyLabel);
     }
 }

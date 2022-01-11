@@ -1,58 +1,39 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Hubbup.MikLabelModel;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 
 namespace IssueLabeler.Shared.Models
 {
-    public interface IModelHolderFactoryLite
+    public interface IModelHolderFactory
     {
-        Task<IModelHolder> CreateModelHolder(string owner, string repo);
+        IModelHolder CreateModelHolder(string owner, string repo);
+        IPredictor GetPredictor(string owner, string repo);
     }
-    public class ModelHolderFactoryLite : IModelHolderFactoryLite
+    public class ModelHolderFactory : IModelHolderFactory
     {
         private readonly ConcurrentDictionary<(string, string), IModelHolder> _models = new ConcurrentDictionary<(string, string), IModelHolder>();
-        private readonly ILogger<ModelHolderFactoryLite> _logger;
+        private readonly ILogger<ModelHolderFactory> _logger;
         private IConfiguration _configuration;
-        private SemaphoreSlim _sem = new SemaphoreSlim(1);
-
-        public ModelHolderFactoryLite(
-            ILogger<ModelHolderFactoryLite> logger,
-            IConfiguration configuration)
+        private readonly IBackgroundTaskQueue _backgroundTaskQueue;
+        public ModelHolderFactory(
+            ILogger<ModelHolderFactory> logger,
+            IConfiguration configuration,
+            IBackgroundTaskQueue backgroundTaskQueue)
         {
+            _backgroundTaskQueue = backgroundTaskQueue;
             _configuration = configuration;
             _logger = logger;
         }
 
-        public async Task<IModelHolder> CreateModelHolder(string owner, string repo)
+        public IModelHolder CreateModelHolder(string owner, string repo)
         {
-            IModelHolder modelHolder = null;
-            if (_models.TryGetValue((owner, repo), out modelHolder))
-            {
-                return modelHolder;
-            }
-
-            if (IsConfigured(repo))
-            {
-                bool acquired = false;
-                try
-                {
-                    await _sem.WaitAsync();
-                    acquired = true;
-                    if (acquired)
-                    {
-                        modelHolder = await InitFor(repo);
-                        _models.GetOrAdd((owner, repo), modelHolder);
-                    }
-                }
-                finally
-                {
-                    if (acquired)
-                    {
-                        _sem.Release();
-                    }
-                }
-            }
-            return modelHolder;
+            if (!IsConfigured(repo))
+                return null;
+            return _models.TryGetValue((owner, repo), out IModelHolder modelHolder) ?
+                modelHolder :
+               _models.GetOrAdd((owner, repo), InitFor(repo));
         }
 
         private bool IsConfigured(string repo)
@@ -82,14 +63,28 @@ namespace IssueLabeler.Shared.Models
             return false;
         }
 
-        private async Task<IModelHolder> InitFor(string repo)
+        private IModelHolder InitFor(string repo)
         {
             var mh = new ModelHolder(_logger, _configuration, repo);
             if (!mh.LoadRequested)
             {
-                await mh.LoadEnginesAsync();
+                _backgroundTaskQueue.QueueBackgroundWorkItem((ct) => mh.LoadEnginesAsync());
             }
             return mh;
+        }
+
+        public IPredictor GetPredictor(string owner, string repo)
+        {
+            var modelHolder = CreateModelHolder(owner, repo);
+            if (modelHolder == null)
+            {
+                throw new InvalidOperationException($"Repo {owner}/{repo} is not yet configured for label prediction.");
+            }
+            if (!modelHolder.IsIssueEngineLoaded || (!modelHolder.UseIssuesForPrsToo && !modelHolder.IsPrEngineLoaded))
+            {
+                throw new InvalidOperationException("Issue engine must be loaded.");
+            }
+            return new Predictor(_logger, modelHolder);
         }
     }
 }

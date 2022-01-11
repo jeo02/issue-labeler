@@ -9,14 +9,13 @@ using Microsoft.Extensions.Logging;
 using Hubbup.MikLabelModel;
 using System.Text.Json;
 using System.Linq;
-using IssueLabeler.Shared.Models;
-using Microsoft.Extensions.Configuration;
+using Octokit;
 
 namespace IssueLabeler
 {
     public class TestIssueLabeler
     {
-        private static Func<Shared.LabelSuggestion, Octokit.Issue, bool> shouldUpdate = new Func<Shared.LabelSuggestion, Octokit.Issue, bool>((sug, _) => sug.LabelScores.Any(s => s.Score > 0.5f));
+        private static Func<Shared.LabelSuggestion, Issue, float, bool> shouldUpdate = new ((sug, _, threshold) => sug.ModelConfigName != "ServiceLabels" && sug.LabelScores.Any(s => s.Score > threshold));
         private readonly ILabelerLite _labeler;
 
         public TestIssueLabeler(ILabelerLite labeler)
@@ -40,6 +39,7 @@ namespace IssueLabeler
             {
                 data = new WebHookModel() { id = 23600, owner = "Azure", repo = "azure-sdk-for-net" };
             }
+
             await _labeler.ApplyLabelPrediction(data.owner, data.repo, data.id, shouldUpdate);
             return new OkObjectResult("success");
         }

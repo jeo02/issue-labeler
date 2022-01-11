@@ -17,10 +17,12 @@ namespace IssueLabeler
     public class IssueLabeler
     {
         private readonly ILabelerLite _labeler;
+        private readonly IConfiguration _config;
 
         public IssueLabeler(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config)
         {
             _labeler = labeler;
+            _config = config;
             var owner = config["RepoOwner"];
             var repos = config["RepoNames"];
             if (repos != null)
@@ -28,7 +30,19 @@ namespace IssueLabeler
                 var r = repos.Split(';', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var repo in r)
                 {
-                    modelHolderFactory.CreateModelHolder(owner, repo).GetAwaiter().GetResult();
+                    var blobConfig = $"IssueModel:{repo}:BlobConfigNames";
+                    if (!string.IsNullOrEmpty(config[blobConfig]))
+                    {
+                        var blobConfigs = config[blobConfig].Split(';', StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var blobConfigName in blobConfigs)
+                        {
+                            modelHolderFactory.CreateModelHolder(owner, repo, blobConfigName).GetAwaiter().GetResult();
+                        }
+                    }
+                    else
+                    {
+                        modelHolderFactory.CreateModelHolder(owner, repo).GetAwaiter().GetResult();
+                    }
                 }
             }
         }
@@ -42,7 +56,7 @@ namespace IssueLabeler
                 try
                 {
                     string eventBody = Encoding.UTF8.GetString(eventData.EventBody);
-                    EventProcessor.ProcessEvent(eventBody, _labeler, log);
+                    EventProcessor.ProcessEvent(eventBody, _labeler, log, _config);
 
                     // Replace these two lines with your processing logic.
                     log.LogTrace($"C# Event Hub trigger function processed a message: {eventBody}");

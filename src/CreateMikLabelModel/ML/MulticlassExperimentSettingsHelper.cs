@@ -30,7 +30,7 @@ namespace CreateMikLabelModel.ML
             // (Please note: for an experiment on a large dataset, opting to keep all
             // models trained by AutoML in memory could cause your system to run out
             // of memory.)
-            experimentSettings.CacheDirectory = new DirectoryInfo(Path.GetTempPath());
+            experimentSettings.CacheDirectoryName = Path.GetTempPath();
             experimentSettings.OptimizingMetric = MulticlassClassificationMetric.MicroAccuracy;
             return (columnInference, experimentSettings);
         }

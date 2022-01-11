@@ -61,19 +61,10 @@ namespace Hubbup.MikLabelModel
             {
                 _regex = new Regex(@"@[a-zA-Z0-9_//-]+");
             }
-            var modelHolder = _modelHolderFactory.CreateModelHolder(owner, repo);
-            if (modelHolder == null)
-            {
-                throw new InvalidOperationException($"Repo {owner}/{repo} is not yet configured for label prediction.");
-            }
-            if (!modelHolder.IsIssueEngineLoaded || (!modelHolder.UseIssuesForPrsToo && !modelHolder.IsPrEngineLoaded))
-            {
-                throw new InvalidOperationException("load engine before calling predict");
-            }
+            var predictor = _modelHolderFactory.GetPredictor(owner, repo);
 
             var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
             bool isPr = iop.PullRequest != null;
-
 
             string body = iop.Body ?? string.Empty;
             var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
@@ -82,13 +73,13 @@ namespace Hubbup.MikLabelModel
             if (isPr && !_useIssueLabelerForPrsToo)
             {
                 var prModel = await CreatePullRequest(owner, repo, iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-                labelSuggestion = await Predictor.Predict(prModel, _logger, modelHolder);
+                labelSuggestion = await predictor.Predict(prModel);
                 _logger.LogInformation("predicted with pr model the new way");
                 _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
                 return labelSuggestion;
             }
             var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-            labelSuggestion = await Predictor.Predict(issueModel, _logger, modelHolder);
+            labelSuggestion = await predictor.Predict(issueModel);
             _logger.LogInformation("predicted with issue model the new way");
             _logger.LogInformation(string.Join(",", labelSuggestion.LabelScores.Select(x => x.LabelName)));
             return labelSuggestion;

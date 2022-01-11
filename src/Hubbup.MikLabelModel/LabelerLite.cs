@@ -3,11 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 using IssueLabeler.Shared;
-using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Octokit;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -21,6 +21,8 @@ namespace Hubbup.MikLabelModel
         private readonly IModelHolderFactoryLite _modelHolderFactory;
         private readonly IConfiguration _config;
         private readonly IGitHubClientWrapper _gitHubClientWrapper;
+        private const float defaultConfidenceThreshold = 0.60f;
+        private const string defaultModel = "default model";
 
         public LabelerLite(
             ILogger<LabelerLite> logger,
@@ -34,66 +36,114 @@ namespace Hubbup.MikLabelModel
             _config = config;
         }
 
-
-
-        public async Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, bool> shouldApplyLabel)
+        public async Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, float, bool> shouldApplyLabel)
         {
             _logger.LogInformation($"ApplyLabelPrediction started query for {owner}/{repo}#{number}");
 
-            var modelHolder = await _modelHolderFactory.CreateModelHolder(owner, repo);
-            if (modelHolder == null)
-            {
-                _logger.LogError($"Repo {owner}/{repo} is not yet configured for label prediction.");
-                return;
-            }
-            if (!modelHolder.IsIssueEngineLoaded)
-            {
-                _logger.LogError("load engine before calling predict");
-                return;
-            }
-
-            // Load issue
             var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
             string body = iop.Body ?? string.Empty;
             var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
             var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-
-            // Do prediction
-            var labelSuggestion = await Predictor.Predict(issueModel, _logger, modelHolder);
-            if (labelSuggestion == null)
+            var issueUpdate = iop.ToUpdate();
+            
+            // Get predictions
+            var configuredConfidence = _config[$"PrModel:{repo}:BlobName:ConfidenceThreshold"];
+            float confidence = defaultConfidenceThreshold;
+            if (!float.TryParse(configuredConfidence, out confidence))
             {
-                _logger.LogCritical($"Failed: Unable to get prediction for {owner}/{repo}#{number}");
-                return;
+                confidence = defaultConfidenceThreshold;
+                _logger.LogInformation($"Prediction confidence default threshold of {confidence} will be used as no value was configured. {owner}/{repo}#{number}");
             }
-            _logger.LogInformation($"Prediction results for {owner}/{repo}#{number}: '{string.Join(",", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:{x.Score}"))}'");
-
-
-            if (!shouldApplyLabel(labelSuggestion, iop))
+            else
             {
-                _logger.LogWarning($"Failed: shouldApplyLabel func returned false for {owner}/{repo}#{number}");
-                return;
+                _logger.LogInformation($"Prediction confidence threshold of {confidence} will be used. {owner}/{repo}#{number}");
             }
 
-            var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
-            if (iop.Labels.Any(l => l.Name == topChoice.LabelName))
+            var predictions = await GetPredictions(owner, repo, number, issueModel);
+            bool issueMissingLabels = false;
+            bool predictionBelowConfidenceThreshold = false;
+            foreach (var labelSuggestion in predictions)
             {
-                _logger.LogInformation($"Success: Issue {owner}/{repo}#{number} already tagged with label '{topChoice.LabelName}'");
+                if (!shouldApplyLabel(labelSuggestion, iop, confidence))
+                {
+                    _logger.LogWarning($"Failed: shouldApplyLabel func returned false for {owner}/{repo}#{number} Model:{labelSuggestion.ModelConfigName ?? defaultModel}");
+                    predictionBelowConfidenceThreshold = true;
+                    continue;
+                }
+
+                var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
+                if (!iop.Labels.Any(l => l.Name == topChoice.LabelName))
+                {
+                    issueMissingLabels = true;
+                    // Add the label to the local issueUpdate model.
+                    issueUpdate.AddLabel(topChoice.LabelName);
+                }
+                else
+                {
+                    _logger.LogInformation($"Success(partial): Issue {owner}/{repo}#{number} already tagged with label '{topChoice.LabelName}'");
+                }
+            }
+            //if (!issueMissingLabels || predictionBelowConfidenceThreshold)
+            if (predictionBelowConfidenceThreshold)
+            {
                 return;
             }
 
+            await UpdateIssueAsync(owner, repo, number, issueUpdate);
+        }
+
+        private async Task<List<LabelSuggestion>> GetPredictions(string owner, string repo, int number, GitHubIssue issueModel)
+        {
+            List<LabelSuggestion> predictions = new List<LabelSuggestion>();
+            List<IPredictor> predictors = new List<IPredictor>();
+
+            var blobConfig = $"IssueModel:{repo}:BlobConfigNames";
+            if (!string.IsNullOrEmpty(_config[blobConfig]))
+            {
+                var blobConfigs = _config[blobConfig].Split(';', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var blobConfigName in blobConfigs)
+                {
+                    // get a prediction for each model
+                    var predictor = await _modelHolderFactory.GetPredictor(owner, repo, blobConfigName);
+                    predictors.Add(predictor);
+                }
+            }
+            else
+            {
+                // Add just the default predictor
+                var predictor = await _modelHolderFactory.GetPredictor(owner, repo);
+                predictors.Add(predictor);
+            }
+
+            foreach (var predictor in predictors)
+            {
+                var labelSuggestion = await predictor.Predict(issueModel);
+                labelSuggestion.ModelConfigName = predictor.ModelName;
+                if (labelSuggestion == null)
+                {
+                    _logger.LogCritical($"Failed: Unable to get prediction for {owner}/{repo}#{number}. ModelName:{predictor.ModelName}");
+                    return null;
+                }
+                _logger.LogInformation($"Prediction results for {owner}/{repo}#{number}, Model:{labelSuggestion.ModelConfigName ?? defaultModel}: '{string.Join(",", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:{x.Score}"))}'");
+                predictions.Add(labelSuggestion);
+            }
+
+            return predictions;
+        }
+
+        private async Task UpdateIssueAsync(string owner, string repo, int number, IssueUpdate issueUpdate)
+        {
             var configSection = $"IssueModel:{repo}:WhatIf";
             var whatIf = _config[configSection];
             if (string.IsNullOrEmpty(whatIf) || whatIf != "false")
             {
-                _logger.LogInformation($"Whatif=true. Issue {owner}/{repo}#{number} would have been tagged with label '{topChoice.LabelName}'");
+                _logger.LogInformation($"Whatif=true. Issue {owner}/{repo}#{number} would have been updated.");
                 return;
             }
 
             // Update issue
-            var issueUpdate = iop.ToUpdate();
-            issueUpdate.AddLabel(topChoice.LabelName);
             await _gitHubClientWrapper.UpdateIssue(owner, repo, number, issueUpdate);
-            _logger.LogInformation($"Success: Issue {owner}/{repo}#{number} tagged with label '{topChoice.LabelName}'");
+            _logger.LogInformation($"Success: Updated Issue {owner}/{repo}#{number}");
         }
 
         private static GitHubIssue CreateIssue(int number, string title, string body, string[] userMentions, string author)

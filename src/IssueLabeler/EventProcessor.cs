@@ -1,5 +1,6 @@
 ﻿using Hubbup.MikLabelModel;
 using IssueLabeler.Shared;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Octokit;
 using System;
@@ -12,22 +13,18 @@ namespace IssueLabeler
 {
     internal class EventProcessor
     {
-        private static Func<LabelSuggestion, Issue, bool> shouldLabel;
+        private static Func<LabelSuggestion, Issue, float, bool> shouldLabel;
 
         static EventProcessor()
         {
-            int threshold = 60;
-            var thresholdConfig = System.Environment.GetEnvironmentVariable("ConfidenceThreshold", EnvironmentVariableTarget.Process);
-            // read the configured threshold value, if present
-            int.TryParse(thresholdConfig, out threshold);
-            shouldLabel = (labelSuggestion, issue) =>
+            shouldLabel = (labelSuggestion, issue, threshold) =>
             {
                 var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
                 return topChoice.Score >= threshold;
             };
         }
 
-        public static void ProcessEvent(string eventBody, ILabelerLite labeler, ILogger _logger)
+        public static void ProcessEvent(string eventBody, ILabelerLite labeler, ILogger _logger, IConfiguration _config)
         {
             if (eventBody == "This is an event body")
             {
@@ -38,7 +35,7 @@ namespace IssueLabeler
             string decoded = string.Empty;
             Models.IssueEvent payload = null;
             var elementMap = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(eventBody);
-           
+
 
             foreach (var element in elementMap)
             {
@@ -71,6 +68,7 @@ namespace IssueLabeler
                         {
                             // Process the issue
                             var repoInfo = payload.Repository.FullName.Split('/', 2);
+                            
                             labeler.ApplyLabelPrediction(repoInfo[0], repoInfo[1], payload.Issue.Number, shouldLabel);
                         }
                     }

@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using IssueLabeler.Shared;
-using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -14,16 +13,26 @@ using System.Threading.Tasks;
 
 namespace Hubbup.MikLabelModel
 {
-    public static class Predictor
+    public class Predictor : IPredictor
     {
         private static SemaphoreSlim sem = new SemaphoreSlim(1);
+        private readonly ILogger logger;
+        private readonly IModelHolder modelHolder;
 
-        public static Task<LabelSuggestion> Predict(GitHubIssue issue, ILogger logger, IModelHolder modelHolder)
+        public string ModelName { get; set; }
+
+        public Predictor(ILogger logger, IModelHolder modelHolder)
+        {
+            this.logger = logger;
+            this.modelHolder = modelHolder;
+        }
+
+        public Task<LabelSuggestion> Predict(GitHubIssue issue)
         {
             return Predict(issue, modelHolder.IssuePredEngine, logger);
         }
 
-        public static Task<LabelSuggestion> Predict(GitHubPullRequest issue, ILogger logger, IModelHolder modelHolder)
+        public Task<LabelSuggestion> Predict(GitHubPullRequest issue)
         {
             if (modelHolder.UseIssuesForPrsToo)
             {
