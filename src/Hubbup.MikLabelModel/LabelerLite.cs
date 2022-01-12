@@ -151,7 +151,7 @@ namespace Hubbup.MikLabelModel
             // If the issue was already labeled with our predictions, no update is needed
             if (!issueMissingLabels)
             {
-                _logger.LogInformation($"Success: Did not update Issue {owner}/{repo}#{number} because it was already had the predicted labels");
+                _logger.LogInformation($"Success: Did not update Issue {owner}/{repo}#{number} because it already has the predicted labels");
                 return;
             }
 
