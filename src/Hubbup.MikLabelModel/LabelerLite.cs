@@ -40,55 +40,64 @@ namespace Hubbup.MikLabelModel
         public async Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, float, bool> shouldApplyLabel)
         {
             _logger.LogInformation($"ApplyLabelPrediction started query for {owner}/{repo}#{number}");
-
-            var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
-            string body = iop.Body ?? string.Empty;
-            var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
-            var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
-            var issueUpdate = iop.ToUpdate();
-            _config.TryGetConfigValue($"IssueModel:{repo}:WhatIf", out var whatIf, "true");
-
-            // Get predictions
-            var configuredConfidence = _config[$"IssueModel:{repo}:BlobName:ConfidenceThreshold"];
-            float confidence = defaultConfidenceThreshold;
-            if (!float.TryParse(configuredConfidence, out confidence))
+            int updateAttempt = 0;
+            while (updateAttempt < 3)
             {
-                confidence = defaultConfidenceThreshold;
-                _logger.LogInformation($"Prediction confidence default threshold of {confidence} will be used as no value was configured. {owner}/{repo}#{number}");
-            }
-            else
-            {
-                _logger.LogInformation($"Prediction confidence threshold of {confidence} will be used. {owner}/{repo}#{number}");
-            }
+                updateAttempt++;
+                var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
+                string body = iop.Body ?? string.Empty;
+                var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
+                var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
+                var issueUpdate = iop.ToUpdate();
+                _config.TryGetConfigValue($"IssueModel:{repo}:WhatIf", out var whatIf, "true");
 
-            var predictions = await GetPredictions(owner, repo, number, issueModel);
-            bool issueMissingLabels = false;
-            bool predictionBelowConfidenceThreshold = false;
-            StringBuilder commentText = new StringBuilder();
-            foreach (var labelSuggestion in predictions)
-            {
-                if (!shouldApplyLabel(labelSuggestion, iop, confidence))
+                // Get predictions
+                var configuredConfidence = _config[$"IssueModel:{repo}:BlobName:ConfidenceThreshold"];
+                float confidence = defaultConfidenceThreshold;
+                if (!float.TryParse(configuredConfidence, out confidence))
                 {
-                    _logger.LogWarning($"Failed: shouldApplyLabel func returned false for {owner}/{repo}#{number} Model:{labelSuggestion.ModelConfigName ?? defaultModel}");
-                    commentText.AppendLine($"Label prediction was below confidence level `{confidence}` for Model:`{labelSuggestion.ModelConfigName ?? defaultModel}`: '{string.Join(",", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:{x.Score}"))}'");
-                    predictionBelowConfidenceThreshold = true;
-                    continue;
-                }
-
-                var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
-                if (!iop.Labels.Any(l => l.Name == topChoice.LabelName))
-                {
-                    issueMissingLabels = true;
-                    // Add the label to the local issueUpdate model.
-                    issueUpdate.AddLabel(topChoice.LabelName);
+                    confidence = defaultConfidenceThreshold;
+                    _logger.LogInformation($"Prediction confidence default threshold of {confidence} will be used as no value was configured. {owner}/{repo}#{number}");
                 }
                 else
                 {
-                    _logger.LogInformation($"Success(partial): Issue {owner}/{repo}#{number} already tagged with label '{topChoice.LabelName}'");
+                    _logger.LogInformation($"Prediction confidence threshold of {confidence} will be used. {owner}/{repo}#{number}");
                 }
-            }            
 
-            await UpdateIssueAsync(owner, repo, number, issueUpdate, commentText.ToString(), issueMissingLabels, predictionBelowConfidenceThreshold, whatIf);
+                var predictions = await GetPredictions(owner, repo, number, issueModel);
+                bool issueMissingLabels = false;
+                bool predictionBelowConfidenceThreshold = false;
+                StringBuilder commentText = new StringBuilder();
+                foreach (var labelSuggestion in predictions)
+                {
+                    if (!shouldApplyLabel(labelSuggestion, iop, confidence))
+                    {
+                        _logger.LogWarning($"Failed: shouldApplyLabel func returned false for {owner}/{repo}#{number} Model:{labelSuggestion.ModelConfigName ?? defaultModel}");
+                        commentText.AppendLine($"Label prediction was below confidence level `{confidence}` for Model:`{labelSuggestion.ModelConfigName ?? defaultModel}`: '{string.Join(",", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:{x.Score}"))}'");
+                        predictionBelowConfidenceThreshold = true;
+                        continue;
+                    }
+
+                    var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
+                    if (!iop.Labels.Any(l => l.Name == topChoice.LabelName))
+                    {
+                        issueMissingLabels = true;
+                        // Add the label to the local issueUpdate model.
+                        issueUpdate.AddLabel(topChoice.LabelName);
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Success(partial): Issue {owner}/{repo}#{number} already tagged with label '{topChoice.LabelName}'");
+                    }
+                }
+
+                var success = await UpdateIssueAsync(owner, repo, number, issueUpdate, iop.UpdatedAt, commentText.ToString(), issueMissingLabels, predictionBelowConfidenceThreshold, whatIf);
+                if (success)
+                {
+                    return;
+                }
+            }
+            _logger.LogError($"Failed: Tried to update Issue {owner}/{repo}#{number} {updateAttempt} times.");
         }
 
         private async Task<List<LabelSuggestion>> GetPredictions(string owner, string repo, int number, GitHubIssue issueModel)
@@ -129,12 +138,12 @@ namespace Hubbup.MikLabelModel
             return predictions;
         }
 
-        private async Task UpdateIssueAsync(string owner, string repo, int number, IssueUpdate issueUpdate, string commentText, bool issueMissingLabels, bool predictionBelowConfidenceThreshold, string whatIf)
+        private async Task<bool> UpdateIssueAsync(string owner, string repo, int number, IssueUpdate issueUpdate, DateTimeOffset? lastUpdated, string commentText, bool issueMissingLabels, bool predictionBelowConfidenceThreshold, string whatIf)
         {
             if (whatIf != "false")
             {
                 _logger.LogInformation($"Whatif=true. Issue {owner}/{repo}#{number} would have been updated.");
-                return;
+                return true;
             }
 
             // If the prediction was below the confidence level, comment with the prediction results
@@ -145,14 +154,14 @@ namespace Hubbup.MikLabelModel
                 {
                     await _gitHubClientWrapper.CommentOn(owner, repo, number, commentText);
                 }
-                return;
+                return true;
             }
 
             // If the issue was already labeled with our predictions, no update is needed
             if (!issueMissingLabels)
             {
                 _logger.LogInformation($"Success: Did not update Issue {owner}/{repo}#{number} because it already has the predicted labels");
-                return;
+                return true;
             }
 
             // If configured, add a success label
@@ -161,9 +170,18 @@ namespace Hubbup.MikLabelModel
                 issueUpdate.AddLabel(successLabel);
             }
 
+            // Check that the issue hasn't updated since we initially got the message.
+            var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
+            if (iop.UpdatedAt != lastUpdated)
+            {
+                _logger.LogWarning($"Issue {owner}/{repo}#{number} was updated since we fetched it, retrying.");
+                return false;
+            }
+
             // Update the issue
             await _gitHubClientWrapper.UpdateIssue(owner, repo, number, issueUpdate);
             _logger.LogInformation($"Success: Updated Issue {owner}/{repo}#{number}");
+            return true;
         }
 
         private static GitHubIssue CreateIssue(int number, string title, string body, string[] userMentions, string author)
