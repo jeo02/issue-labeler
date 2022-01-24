@@ -178,6 +178,8 @@ namespace Hubbup.MikLabelModel
                 return false;
             }
 
+            _logger.LogInformation($"Issue Lables for {owner}/{repo}#{number} prior to update: '{string.Join(',', iop.Labels.Select(l => l.Name))}'");
+
             // Update the issue
             await _gitHubClientWrapper.UpdateIssue(owner, repo, number, issueUpdate);
             _logger.LogInformation($"Success: Updated Issue {owner}/{repo}#{number}");
