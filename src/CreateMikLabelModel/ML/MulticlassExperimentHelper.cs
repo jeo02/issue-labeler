@@ -129,9 +129,10 @@ namespace CreateMikLabelModel.ML
             logger.LogInformation($"    MacroAccuracy = {metrics.MacroAccuracy:0.####}, a value between 0 and 1, the closer to 1, the better");
             logger.LogInformation($"    MicroAccuracy = {metrics.MicroAccuracy:0.####}, a value between 0 and 1, the closer to 1, the better");
             logger.LogInformation($"    LogLoss = {metrics.LogLoss:0.####}, the closer to 0, the better");
-            logger.LogInformation($"    LogLoss for class 1 = {metrics.PerClassLogLoss[0]:0.####}, the closer to 0, the better");
-            logger.LogInformation($"    LogLoss for class 2 = {metrics.PerClassLogLoss[1]:0.####}, the closer to 0, the better");
-            logger.LogInformation($"    LogLoss for class 3 = {metrics.PerClassLogLoss[2]:0.####}, the closer to 0, the better");
+            for (int i = 0; i < metrics.PerClassLogLoss.Count; i++)
+            {
+                logger.LogInformation($"    LogLoss for class {i+1} = {metrics.PerClassLogLoss[i]:0.####}, the closer to 0, the better");
+            }
             logger.LogInformation($"************************************************************");
         }
 

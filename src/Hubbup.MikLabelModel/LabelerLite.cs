@@ -40,6 +40,8 @@ namespace Hubbup.MikLabelModel
         public async Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, float, bool> shouldApplyLabel)
         {
             _logger.LogInformation($"ApplyLabelPrediction started query for {owner}/{repo}#{number}");
+            await Task.Delay(5000);
+            _logger.LogInformation($"ApplyLabelPrediction delay complete {owner}/{repo}#{number}");
             int updateAttempt = 0;
             while (updateAttempt < 3)
             {

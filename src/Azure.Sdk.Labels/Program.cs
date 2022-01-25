@@ -37,7 +37,7 @@ namespace Azure.Sdk.LabelTrainer
         ///
         /// <example>
         ///   <code>
-        ///     dotnet run -- --repository "Azure/azure-sdk-for-net" --git-hub-token "[[ TOKEN ]]" --dataFileDirectory "c:\data\training"
+        ///     dotnet run -- --repository "Azure/azure-sdk-for-net" --git-hub-token "[[ TOKEN ]]" --data-file-directory "c:\data\training"
         ///   </code>
         /// </example>
         ///
