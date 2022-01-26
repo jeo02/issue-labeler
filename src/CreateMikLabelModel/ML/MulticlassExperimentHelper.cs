@@ -2,15 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using IssueLabeler.Shared;
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 
 namespace CreateMikLabelModel.ML
 {
@@ -41,14 +40,16 @@ namespace CreateMikLabelModel.ML
             // Get top few runs ranked by accuracy
             var topRuns = experimentResult.RunDetails
                 .Where(r => r.ValidationMetrics != null && !double.IsNaN(r.ValidationMetrics.MicroAccuracy))
-                .OrderByDescending(r => r.ValidationMetrics.MicroAccuracy).Take(3);
+                .OrderByDescending(r => r.ValidationMetrics.MicroAccuracy)
+                .Take(3)
+                .ToArray();
 
             logger.LogInformation("Top models ranked by accuracy --");
             logger.LogInformation(CreateRow($"{"",-4} {"Trainer",-35} {"MicroAccuracy",14} {"MacroAccuracy",14} {"Duration",9}", Width));
 
-            for (var i = 0; i < topRuns.Count(); i++)
+            for (var i = 0; i < topRuns.Length; i++)
             {
-                var run = topRuns.ElementAt(i);
+                var run = topRuns[i];
                 logger.LogInformation(CreateRow($"{i,-4} {run.TrainerName,-35} {run.ValidationMetrics?.MicroAccuracy ?? double.NaN,14:F4} {run.ValidationMetrics?.MacroAccuracy ?? double.NaN,14:F4} {run.RuntimeInSeconds,9:F1}", Width));
             }
             return experimentResult;

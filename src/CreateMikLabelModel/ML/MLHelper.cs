@@ -33,37 +33,30 @@ namespace CreateMikLabelModel.ML
             Train(st);
 
             stopWatch.Stop();
-            Trace.WriteLine($"Done creating model in {stopWatch.ElapsedMilliseconds}ms");
+            _logger.LogInformation($"Done creating model in {stopWatch.ElapsedMilliseconds}ms");
         }
 
         private void Train(ExperimentModifier settings)
         {
             var setup = MulticlassExperimentSettingsHelper.SetupExperiment(_logger, _mLContext, settings, settings.Paths, settings.ForPrs);
 
-            try
-            {
-                // Start experiment
-                var textLoader = _mLContext.Data.CreateTextLoader(setup.columnInference.TextLoaderOptions);
-                var paths = settings.Paths;
+            // Start experiment
+            var textLoader = _mLContext.Data.CreateTextLoader(setup.columnInference.TextLoaderOptions);
+            var paths = settings.Paths;
 
-                // train once:
-                var experimentResult = MulticlassExperimentHelper.Train(
-                    _logger, _mLContext, setup.experimentSettings, new MulticlassExperimentProgressHandler(_logger), paths, textLoader, setup.columnInference);
+            // train once:
+            var experimentResult = MulticlassExperimentHelper.Train(
+                _logger, _mLContext, setup.experimentSettings, new MulticlassExperimentProgressHandler(_logger), paths, textLoader, setup.columnInference);
 
-                // train twice
-                var refitModel = MulticlassExperimentHelper.Retrain(experimentResult,
-                    "refit model",
-                    new MultiFileSource(paths.TrainPath, paths.ValidatePath),
-                    paths.ValidatePath,
-                    paths.FittedModelPath, textLoader, _logger, _mLContext);
+            // train twice
+            _ = MulticlassExperimentHelper.Retrain(experimentResult,
+                "refit model",
+                new MultiFileSource(paths.TrainPath, paths.ValidatePath),
+                paths.ValidatePath,
+                paths.FittedModelPath, textLoader, _logger, _mLContext);
 
-                // final train:
-                refitModel = MulticlassExperimentHelper.Retrain(_logger, _mLContext, experimentResult, setup.columnInference, paths);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex);
-            }
+            // final train:
+            _ = MulticlassExperimentHelper.Retrain(_logger, _mLContext, experimentResult, setup.columnInference, paths);
         }
     }
 }
