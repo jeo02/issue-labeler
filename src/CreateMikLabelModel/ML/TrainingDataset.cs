@@ -14,7 +14,7 @@ namespace CreateMikLabelModel.ML
 {
     internal static class TrainingDataset
     {
-        private const int TrainingDataLineMinimum = 100;
+        private const int TrainingDataLineMinimum = 250;
         private const string DataSetBasicHeaders = "CombinedID\tID\tLabel\tTitle\tDescription\tAuthor\tIsPR\tNumMentions\tUserMentions";
         private const string DataSetFileHeaders = DataSetBasicHeaders + "\tFileCount\tFiles\tFilenames\tFileExtensions\tFolderNames\tFolders";
 
