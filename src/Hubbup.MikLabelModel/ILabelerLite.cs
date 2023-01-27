@@ -6,11 +6,13 @@ using IssueLabeler.Shared;
 using Octokit;
 using System.Threading.Tasks;
 using System;
+using System.Collections.Generic;
 
 namespace Hubbup.MikLabelModel
 {
     public interface ILabelerLite
     {
         Task ApplyLabelPrediction(string owner, string repo, int number, Func<LabelSuggestion, Issue, float, bool> shouldApplyLabel);
+        Task<List<string>> QueryLabelPrediction(int issueNumber, string title, string body, string issueUserLogin, string repositoryName, string repositoryOwnerName);
     }
 }

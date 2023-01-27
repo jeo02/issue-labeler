@@ -11,52 +11,29 @@ using System.Diagnostics;
 using IssueLabeler.Shared.Models;
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics.Contracts;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs.Extensions.Http;
 
 namespace IssueLabeler
 {
-    public class IssueLabeler
+    public class IssueLabeler : IssueLabelerFunctionBase
     {
-        private readonly ILabelerLite _labeler;
-        private readonly IConfiguration _config;
-
         public IssueLabeler(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config)
+            : base(labeler, modelHolderFactory, config)
         {
-            _labeler = labeler;
-            _config = config;
-            var owner = config["RepoOwner"];
-            var repos = config["RepoNames"];
-            if (repos != null)
-            {
-                var r = repos.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var repo in r)
-                {
-                    var blobConfig = $"IssueModel:{repo}:BlobConfigNames";
-                    if (!string.IsNullOrEmpty(config[blobConfig]))
-                    {
-                        var blobConfigs = config[blobConfig].Split(';', StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var blobConfigName in blobConfigs)
-                        {
-                            modelHolderFactory.CreateModelHolder(owner, repo, blobConfigName).GetAwaiter().GetResult();
-                        }
-                    }
-                    else
-                    {
-                        modelHolderFactory.CreateModelHolder(owner, repo).GetAwaiter().GetResult();
-                    }
-                }
-            }
         }
 
         [FunctionName("IssueLabeler")]
         public async Task Run([EventHubTrigger("%EventHubName%", Connection = "EventHubConnection")] EventData[] events, ILogger log)
-        {           
+        {
             var exceptions = new List<Exception>();
             foreach (EventData eventData in events)
             {
                 try
                 {
                     string eventBody = Encoding.UTF8.GetString(eventData.EventBody);
-                    EventProcessor.ProcessEvent(eventBody, _labeler, log, _config);
+                    EventProcessor.ProcessEvent(eventBody, Labeler, log, Config);
 
                     // Replace these two lines with your processing logic.
                     log.LogTrace($"C# Event Hub trigger function processed a message: {eventBody}");
@@ -77,6 +54,5 @@ namespace IssueLabeler
             if (exceptions.Count == 1)
                 throw exceptions.Single();
         }
-
     }
 }
