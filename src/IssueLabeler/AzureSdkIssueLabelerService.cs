@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Hubbup.MikLabelModel;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
@@ -21,7 +20,7 @@ namespace IssueLabeler
         }
 
         [FunctionName("AzureSdkIssueLabelerService")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "POST", Route = null)] HttpRequest request, ILogger log)
+        public async Task<PredictionResponse> Run([HttpTrigger(AuthorizationLevel.Function, "POST", Route = null)] HttpRequest request, ILogger log)
         {
             using var bodyReader = new StreamReader(request.Body);
 
@@ -32,7 +31,6 @@ namespace IssueLabeler
             // be at least two of them, which corresponds to a Service (pink)
             // and Category (yellow).  If that is not met, then no predictions
             // should be returned.
-
             var predictions = await Labeler.QueryLabelPrediction(
                 issue.IssueNumber,
                 issue.Title,
@@ -43,10 +41,10 @@ namespace IssueLabeler
 
             if (predictions.Count < 2)
             {
-                return new JsonResult(new PredictionResponse(Array.Empty<string>()));
+                return new PredictionResponse(Array.Empty<string>());
             }
 
-            return new JsonResult(new PredictionResponse(predictions));     
+            return new PredictionResponse(predictions);
         }
 
         // Private type used for deserializing the request paylod of issue data.
@@ -60,7 +58,7 @@ namespace IssueLabeler
             public string RepositoryOwnerName;
         }
 
-        // Private type used for shaping the JSON response payload.
-        private record PredictionResponse(IEnumerable<string> labels);
+        // Type used for shaping the JSON response payload.
+        public record PredictionResponse(IEnumerable<string> labels);
     }
 }
