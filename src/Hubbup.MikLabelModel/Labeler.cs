@@ -114,7 +114,7 @@ namespace Hubbup.MikLabelModel
                         CanCommentOnIssue = _configuration.GetSection($"{owner}:{repo}:can_comment_on").Get<bool>()
                     });
             }
-            catch (Exception ex)
+            catch
             {
                 // the repo is not configured, return null to skip
                 _logger.LogError($"{owner}/{repo} is not yet configured.");

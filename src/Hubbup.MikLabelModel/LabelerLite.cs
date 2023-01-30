@@ -2,22 +2,23 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using IssueLabeler.Shared;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using IssueLabeler.Shared;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Octokit;
 
 namespace Hubbup.MikLabelModel
 {
     public class LabelerLite : ILabelerLite
     {
-        private Regex _regex = new Regex(@"@[a-zA-Z0-9_//-]+", RegexOptions.Compiled);
+        private static Regex MentionsRegex { get; } = new Regex(@"@[a-zA-Z0-9_//-]+", RegexOptions.Compiled);
+
         private readonly ILogger<LabelerLite> _logger;
         private readonly IModelHolderFactoryLite _modelHolderFactory;
         private readonly IConfiguration _config;
@@ -48,8 +49,7 @@ namespace Hubbup.MikLabelModel
                 updateAttempt++;
                 var iop = await _gitHubClientWrapper.GetIssue(owner, repo, number);
                 string body = iop.Body ?? string.Empty;
-                var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
-                var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, userMentions, iop.User.Login);
+                var issueModel = CreateIssue(iop.Number, iop.Title, iop.Body, iop.User.Login);
                 var issueUpdate = iop.ToUpdate();
                 _config.TryGetConfigValue($"IssueModel:{repo}:WhatIf", out var whatIf, "true");
 
@@ -100,6 +100,60 @@ namespace Hubbup.MikLabelModel
                 }
             }
             _logger.LogError($"Failed: Tried to update Issue {owner}/{repo}#{number} {updateAttempt} times.");
+        }
+
+        public async Task<List<string>> QueryLabelPrediction(
+            int issueNumber,
+            string title,
+            string body,
+            string issueUserLogin,
+            string repositoryName,
+            string repositoryOwnerName)
+        {
+            AssertNotNullOrEmpty(title, nameof(title));
+            AssertNotNullOrEmpty(body, nameof(body));
+            AssertNotNullOrEmpty(issueUserLogin, nameof(issueUserLogin));
+            AssertNotNullOrEmpty(repositoryName, nameof(repositoryName));
+            AssertNotNullOrEmpty(repositoryOwnerName, nameof(repositoryOwnerName));
+                        
+            _logger.LogInformation($"Predict Labels started query for {repositoryOwnerName}/{repositoryName}#{issueNumber}");
+            
+            // Query raw predictions            
+            var issueModel = CreateIssue(issueNumber, title, body, issueUserLogin);        
+            var predictions = await GetPredictions(repositoryOwnerName, repositoryName, issueNumber, issueModel);
+
+            // Determine the confidence threshold to use for filtering predictions
+            float confidenceThreshold;
+
+            if (!float.TryParse(_config[$"IssueModel:{repositoryName}:BlobName:ConfidenceThreshold"], out confidenceThreshold))
+            {
+                confidenceThreshold = defaultConfidenceThreshold;
+                _logger.LogInformation($"Prediction confidence default threshold of {confidenceThreshold} will be used as no value was configured. {repositoryOwnerName}/{repositoryName}#{issueNumber}");
+            }
+            else
+            {
+                _logger.LogInformation($"Prediction confidence threshold of {confidenceThreshold} will be used. {repositoryOwnerName}/{repositoryName}#{issueNumber}");
+            }
+
+            // Filter predictions based on the confidence threshold.
+            var predictedLabels = new List<string>();
+
+            foreach (var labelSuggestion in predictions)
+            {
+                var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
+                                
+                if (topChoice.Score >= confidenceThreshold)
+                {
+                    predictedLabels.Add(topChoice.LabelName);
+                }
+                else
+                {
+                    _logger.LogWarning($"Label prediction was below confidence level `{confidenceThreshold}` for Model:`{labelSuggestion.ModelConfigName ?? defaultModel}`: '{string.Join(", ", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:[{x.Score}]"))}'");                    
+                }
+            }
+
+            _logger.LogInformation($"Predict Labels query for {repositoryOwnerName}/{repositoryName}#{issueNumber} suggested {predictedLabels.Count} labels.");
+            return predictedLabels;
         }
 
         private async Task<List<LabelSuggestion>> GetPredictions(string owner, string repo, int number, GitHubIssue issueModel)
@@ -188,8 +242,10 @@ namespace Hubbup.MikLabelModel
             return true;
         }
 
-        private static GitHubIssue CreateIssue(int number, string title, string body, string[] userMentions, string author)
+        private static GitHubIssue CreateIssue(int number, string title, string body, string author)
         {
+            var userMentions = MentionsRegex.Matches(body ?? string.Empty).Select(x => x.Value).ToArray();
+
             return new GitHubIssue()
             {
                 ID = number,
@@ -200,6 +256,14 @@ namespace Hubbup.MikLabelModel
                 UserMentions = string.Join(' ', userMentions),
                 NumMentions = userMentions.Length
             };
+        }
+
+        private static void AssertNotNullOrEmpty(string value, string paramName)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                throw new ArgumentException($"{paramName} cannot be null or empty.", paramName);
+            }
         }
     }
 }
