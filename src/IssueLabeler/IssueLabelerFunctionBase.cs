@@ -4,8 +4,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace IssueLabeler
 {
-	public abstract class IssueLabelerFunctionBase
-	{
+    public abstract class IssueLabelerFunctionBase
+    {
         protected ILabelerLite Labeler { get; }
         protected IConfiguration Config { get; }
 
