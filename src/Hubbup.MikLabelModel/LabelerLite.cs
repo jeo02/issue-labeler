@@ -115,11 +115,11 @@ namespace Hubbup.MikLabelModel
             AssertNotNullOrEmpty(issueUserLogin, nameof(issueUserLogin));
             AssertNotNullOrEmpty(repositoryName, nameof(repositoryName));
             AssertNotNullOrEmpty(repositoryOwnerName, nameof(repositoryOwnerName));
-                        
+
             _logger.LogInformation($"Predict Labels started query for {repositoryOwnerName}/{repositoryName}#{issueNumber}");
-            
-            // Query raw predictions            
-            var issueModel = CreateIssue(issueNumber, title, body, issueUserLogin);        
+
+            // Query raw predictions
+            var issueModel = CreateIssue(issueNumber, title, body, issueUserLogin);
             var predictions = await GetPredictions(repositoryOwnerName, repositoryName, issueNumber, issueModel);
 
             // Determine the confidence threshold to use for filtering predictions
@@ -141,14 +141,14 @@ namespace Hubbup.MikLabelModel
             foreach (var labelSuggestion in predictions)
             {
                 var topChoice = labelSuggestion.LabelScores.OrderByDescending(x => x.Score).First();
-                                
+
                 if (topChoice.Score >= confidenceThreshold)
                 {
                     predictedLabels.Add(topChoice.LabelName);
                 }
                 else
                 {
-                    _logger.LogWarning($"Label prediction was below confidence level `{confidenceThreshold}` for Model:`{labelSuggestion.ModelConfigName ?? defaultModel}`: '{string.Join(", ", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:[{x.Score}]"))}'");                    
+                    _logger.LogWarning($"Label prediction was below confidence level `{confidenceThreshold}` for Model:`{labelSuggestion.ModelConfigName ?? defaultModel}`: '{string.Join(", ", labelSuggestion.LabelScores.Select(x => $"{x.LabelName}:[{x.Score}]"))}'");
                 }
             }
 

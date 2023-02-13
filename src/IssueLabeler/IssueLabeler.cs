@@ -1,19 +1,13 @@
-using Hubbup.MikLabelModel;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System;
-using System.Linq;
 using Azure.Messaging.EventHubs;
-using System.Diagnostics;
-using IssueLabeler.Shared.Models;
+using Hubbup.MikLabelModel;
+using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
-using System.Diagnostics.Contracts;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Extensions.Logging;
 
 namespace IssueLabeler
 {
