@@ -63,7 +63,7 @@ namespace CreateMikLabelModel
         ///
         /// <returns>The set of <see cref="TrainingDataSegment" /> that were produced.</returns>
         ///
-        public Task<IDictionary<string, TrainingDataSegment>> QueryTrainingData(
+        public virtual Task<IDictionary<string, TrainingDataSegment>> QueryTrainingData(
             string gitHubAccessToken,
             string trainingDataBasePath,
             TrainingDataProcessor processor = default,
@@ -81,7 +81,7 @@ namespace CreateMikLabelModel
         ///
         /// <returns>The set of <see cref="TrainingDataSegment" /> that were produced.</returns>
         ///
-        public async Task<IDictionary<string, TrainingDataSegment>> QueryTrainingData(
+        public virtual async Task<IDictionary<string, TrainingDataSegment>> QueryTrainingData(
             string gitHubAccessToken,
             string trainingDataBasePath,
             string[] trainingRepositoryGroup,

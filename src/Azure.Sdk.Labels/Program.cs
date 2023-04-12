@@ -49,8 +49,9 @@ namespace Azure.Sdk.LabelTrainer
                 Console.WriteLine("The repository path and GitHub access token must be specified.");
                 Console.WriteLine("");
                 Console.WriteLine("Usage:");
+                Console.WriteLine("\tdotnet run -- --repository \"all\" --git-hub-token \"[[ TOKEN ]]\"");
                 Console.WriteLine("\tdotnet run -- --repository \"Azure/azure-sdk-for-net\" --git-hub-token \"[[ TOKEN ]]\"");
-                Console.WriteLine("\tdotnet run -- --repository \"Azure/azure-sdk-for-js\" --git-hub-token \"[[ TOKEN ]]\" --dataFileDirectory \"c:\\data\\training\"");
+                Console.WriteLine("\tdotnet run -- --repository \"Azure/azure-sdk-for-js\" --git-hub-token \"[[ TOKEN ]]\" --data-file-directory \"c:\\data\\training\"");
                 Console.WriteLine("");
 
                 return -1;
@@ -70,7 +71,12 @@ namespace Azure.Sdk.LabelTrainer
             // Build the set of training data.
 
             var logger = new ConsoleLogger();
-            var trainer = new LabelModelTrainer(repository, logger);
+
+            var trainer = repository switch
+            {
+                "all" => new AzureSdkCombinedLabelModelTrainer(logger),
+                _ => new LabelModelTrainer(repository, logger)
+            };
 
             // Step 1: Download the common set of training items and use them to prepare a training data set.  This will include
             // all segments for the different label types needed.
