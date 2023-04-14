@@ -1,6 +1,5 @@
-﻿using Hubbup.MikLabelModel;
-using IssueLabeler.Shared;
-using IssueLabeler.Shared.Models;
+﻿using System;
+using Hubbup.MikLabelModel;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,13 +12,12 @@ namespace IssueLabeler
         public override void Configure(IFunctionsHostBuilder builder)
         {
             var config = builder.GetContext().Configuration;
+
             builder.Services
-                .AddLogging()
-                .AddSingleton(config)
-                .AddSingleton(new GitHubClientFactory(config))
-                .AddSingleton<IModelHolderFactoryLite, ModelHolderFactoryLite>()
-                .AddSingleton<IGitHubClientWrapper, GitHubClientWrapper>()
-                .AddSingleton<ILabelerLite, LabelerLite>();
+                 .AddLogging()
+                 .AddSingleton(config)
+                 .AddSingleton<IModelHolderFactoryLite, ModelHolderFactoryLite>()
+                 .AddSingleton<ILabelerLite, LabelerLite>();
         }
     }
 }
