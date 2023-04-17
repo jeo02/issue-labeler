@@ -58,7 +58,6 @@ namespace IssueLabeler
             if (!Initialized)
             {
                 log.LogInformation("Models have not yet been initialized; loading prediction models.");
-                var semaphoreHeld = false;
 
                 try
                 {
@@ -66,8 +65,6 @@ namespace IssueLabeler
                     {
                         await InitSync.WaitAsync().ConfigureAwait(false);
                     }
-
-                    semaphoreHeld = true;
 
                     if (!Initialized)
                     {
@@ -82,7 +79,7 @@ namespace IssueLabeler
                 }
                 finally
                 {
-                    if (semaphoreHeld)
+                    if (InitSync.CurrentCount <= 0)
                     {
                         InitSync.Release();
                     }

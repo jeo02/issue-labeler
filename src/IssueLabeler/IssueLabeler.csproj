@@ -5,11 +5,6 @@
     <UserSecretsId>401bcdfb-b94b-448f-80ac-36ea8a447a97</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Models\**" />
-    <EmbeddedResource Remove="Models\**" />
-    <None Remove="Models\**" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.15.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.EventHubs" Version="5.0.0" />
