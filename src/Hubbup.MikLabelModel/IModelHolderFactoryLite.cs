@@ -11,6 +11,7 @@ namespace Hubbup.MikLabelModel
 {
     public interface IModelHolderFactoryLite
     {
+        Task<IModelHolder[]> CreateModelHolders(string owner, string repo, string[] modelConfigNames);
         Task<IModelHolder> CreateModelHolder(string owner, string repo, string modelBlobConfigName = null);
         Task<IPredictor> GetPredictor(string owner, string repo, string modelBlobConfigName = null);
     }
@@ -19,7 +20,7 @@ namespace Hubbup.MikLabelModel
         private readonly ConcurrentDictionary<(string, string, string), IModelHolder> _models = new ConcurrentDictionary<(string, string, string), IModelHolder>();
         private readonly ILogger<ModelHolderFactoryLite> _logger;
         private IConfiguration _configuration;
-        private SemaphoreSlim _sem = new SemaphoreSlim(1);
+        private SemaphoreSlim _sem = new SemaphoreSlim(1,1);
 
         public ModelHolderFactoryLite(
             ILogger<ModelHolderFactoryLite> logger,
@@ -29,35 +30,95 @@ namespace Hubbup.MikLabelModel
             _logger = logger;
         }
 
+        public async Task<IModelHolder[]> CreateModelHolders(string owner, string repo, string[] modelConfigNames)
+        {
+            var modelHolders = new IModelHolder[modelConfigNames.Length];
+            var allHeld = true;
+
+            // If all of the models are already held, return them.
+            for (int index = 0; index < modelConfigNames.Length; ++index)
+            {
+                if (_models.TryGetValue((owner, repo, modelConfigNames[index]), out var holder))
+                {
+                    modelHolders[index] = holder;
+                }
+                else
+                {
+                    // At least one model is not held.  No sense in checking the rest.
+                    allHeld = false;
+                    break;
+                }
+            }
+
+            if (allHeld)
+            {
+                return modelHolders;
+            }
+
+            // Some models need to be initialized; acquire the semaphore and initialize.
+            try
+            {
+                if (!_sem.Wait(0))
+                {
+                    await _sem.WaitAsync().ConfigureAwait(false);
+                }
+
+                for (int index = 0; index < modelConfigNames.Length; ++index)
+                {
+                    modelHolders[index] = await CreateModelHolderInternal(owner, repo, modelConfigNames[index]);
+                }
+            }
+            finally
+            {
+                if (_sem.CurrentCount <= 0)
+                {
+                    _sem.Release();
+                }
+            }
+
+            return modelHolders;
+        }
+
         public async Task<IModelHolder> CreateModelHolder(string owner, string repo, string modelBlobConfigName = null)
         {
-            IModelHolder modelHolder = null;
-            if (_models.TryGetValue((owner, repo, modelBlobConfigName), out modelHolder))
+            if (_models.TryGetValue((owner, repo, modelBlobConfigName), out var modelHolder))
             {
                 return modelHolder;
             }
 
-            if (IsConfigured(repo))
+            try
             {
-                bool acquired = false;
-                try
+                if (!_sem.Wait(0))
                 {
-                    await _sem.WaitAsync();
-                    acquired = true;
-                    if (acquired)
-                    {
-                        modelHolder = await InitFor(repo, modelBlobConfigName);
-                        _models.GetOrAdd((owner, repo, modelBlobConfigName), modelHolder);
-                    }
+                    await _sem.WaitAsync().ConfigureAwait(false);
                 }
-                finally
+
+                return await CreateModelHolderInternal(owner, repo, modelBlobConfigName).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (_sem.CurrentCount <= 0)
                 {
-                    if (acquired)
-                    {
-                        _sem.Release();
-                    }
+                    _sem.Release();
                 }
             }
+        }
+
+        public async Task<IModelHolder> CreateModelHolderInternal(string owner, string repo, string modelBlobConfigName)
+        {
+            IModelHolder modelHolder = null;
+
+            if (IsConfigured(repo))
+            {
+                if (_models.TryGetValue((owner, repo, modelBlobConfigName), out modelHolder))
+                {
+                    return modelHolder;
+                }
+
+                modelHolder = await InitFor(repo, modelBlobConfigName);
+                _models.GetOrAdd((owner, repo, modelBlobConfigName), modelHolder);
+            }
+
             return modelHolder;
         }
 

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Hubbup.MikLabelModel;
+using IssueLabeler.Shared.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -17,15 +19,13 @@ namespace IssueLabeler
     public class AzureSdkIssueLabelerService
     {
         private static readonly ActionResult EmptyResult = new JsonResult(new PredictionResponse(Array.Empty<string>()));
-        private static readonly SemaphoreSlim InitSync = new(1, 1);
-        private static readonly HashSet<string> CommonModelRepositories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private static bool Initialized = false;
+        private static readonly ConcurrentDictionary<string, byte> CommonModelRepositories = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, byte> InitializedRepositories = new(StringComparer.OrdinalIgnoreCase);
 
         private string CommonModelRepositoryName { get; }
         private ILabelerLite Labeler { get; }
         private IConfiguration Config { get; }
         private IModelHolderFactoryLite ModelHolderFactory { get; }
-
 
         public AzureSdkIssueLabelerService(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config)
         {
@@ -34,6 +34,18 @@ namespace IssueLabeler
             Config = config;
 
             CommonModelRepositoryName = config["CommonModelRepositoryName"];
+
+            // Initialize the set of repositories that use the common model.
+
+            var commonModelRepos = config["ReposUsingCommonModel"];
+
+            if (!string.IsNullOrEmpty(commonModelRepos))
+            {
+                foreach (var repo in commonModelRepos.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    CommonModelRepositories.TryAdd(repo, 1);
+                }
+            }
         }
 
         [FunctionName("AzureSdkIssueLabelerService")]
@@ -54,42 +66,33 @@ namespace IssueLabeler
                 return new BadRequestResult();
             }
 
-            // If the models haven't been initialized yet, do so now.
-            if (!Initialized)
+            var predictionRepositoryName = TranslateRepoName(issue.RepositoryName);
+
+            // If the model needed for this request hasn't been initialized, do so now.
+            if (!InitializedRepositories.ContainsKey(predictionRepositoryName))
             {
-                log.LogInformation("Models have not yet been initialized; loading prediction models.");
+                log.LogInformation($"Models for {predictionRepositoryName} have not yet been initialized; loading prediction models.");
 
                 try
                 {
-                    if (!InitSync.Wait(0))
-                    {
-                        await InitSync.WaitAsync().ConfigureAwait(false);
-                    }
+                    var allBlobConfigNames = Config[$"IssueModel:{predictionRepositoryName}:BlobConfigNames"].Split(';', StringSplitOptions.RemoveEmptyEntries);
 
-                    if (!Initialized)
-                    {
-                        await Initialize(Config, ModelHolderFactory).ConfigureAwait(false);
-                        Initialized = true;
-                    }
+                    // The model factory is thread-safe and will manage its own concurrency.
+                    await ModelHolderFactory.CreateModelHolders(issue.RepositoryOwnerName, predictionRepositoryName, allBlobConfigNames).ConfigureAwait(false);
+                    InitializedRepositories.TryAdd(predictionRepositoryName, 1);
                 }
                 catch (Exception ex)
                 {
-                    log.LogError($"Error initializing the label prediction models: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
+                    log.LogError($"Error initializing the label prediction models for {predictionRepositoryName}: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
                     return EmptyResult;
                 }
                 finally
                 {
-                    if (InitSync.CurrentCount <= 0)
-                    {
-                        InitSync.Release();
-                    }
-
-                    log.LogInformation("Model initialization is complete.");
+                    log.LogInformation($"Model initialization is complete for {predictionRepositoryName}.");
                 }
             }
 
             // Predict labels.
-            var predictionRepositoryName = TranslateRepoName(issue.RepositoryName);
             log.LogInformation($"Predicting labels for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.");
 
             try
@@ -122,49 +125,8 @@ namespace IssueLabeler
             }
         }
 
-        private async Task Initialize(IConfiguration config, IModelHolderFactoryLite modelHolderFactory)
-        {
-            // Initialize the models to use for prediction.
-
-            var owner = config["RepoOwner"];
-            var repos = config["RepoNames"];
-
-            if (repos != null)
-            {
-                foreach (var repo in repos.Split(';', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var blobConfig = $"IssueModel:{repo}:BlobConfigNames";
-
-                    if (!string.IsNullOrEmpty(config[blobConfig]))
-                    {
-                        var blobConfigs = config[blobConfig].Split(';', StringSplitOptions.RemoveEmptyEntries);
-                        foreach (var blobConfigName in blobConfigs)
-                        {
-                            await modelHolderFactory.CreateModelHolder(owner, repo, blobConfigName).ConfigureAwait(false);
-                        }
-                    }
-                    else
-                    {
-                        await modelHolderFactory.CreateModelHolder(owner, repo).ConfigureAwait(false);
-                    }
-                }
-            }
-
-            // Initialize the set of repositories that use the common model.
-
-            var commonModelRepos = Config["ReposUsingCommonModel"];
-
-            if (!string.IsNullOrEmpty(commonModelRepos))
-            {
-                foreach (var repo in commonModelRepos.Split(';', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    CommonModelRepositories.Add(repo);
-                }
-            }
-        }
-
         private string TranslateRepoName(string repoName) =>
-            CommonModelRepositories.Contains(repoName)
+            CommonModelRepositories.ContainsKey(repoName)
             ? CommonModelRepositoryName
             : repoName;
 
