@@ -2,7 +2,8 @@
 
   <Import Project="..\..\eng\Versions.props" />
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+     <AzureFunctionsVersion>v4</AzureFunctionsVersion>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
@@ -11,9 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Octokit" Version="$(OctokitVersion)" />
-    <PackageReference Include="Microsoft.ML" Version="1.7.0" />
-    <PackageReference Include="Polly" Version="$(PollyVersion)" />
+    <PackageReference Include="Octokit" Version="13.0.1" />
+    <PackageReference Include="Microsoft.ML" Version="3.0.1" />
+    <PackageReference Include="Polly" Version="8.4.2" />
   </ItemGroup>
 
 </Project>

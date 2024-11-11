@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 using Hubbup.MikLabelModel;
 using IssueLabeler.Shared.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -22,16 +21,19 @@ namespace IssueLabeler
         private static readonly ConcurrentDictionary<string, byte> CommonModelRepositories = new(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, byte> InitializedRepositories = new(StringComparer.OrdinalIgnoreCase);
 
+        private readonly ILogger<AzureSdkIssueLabelerService> _logger;
+
         private string CommonModelRepositoryName { get; }
         private ILabelerLite Labeler { get; }
         private IConfiguration Config { get; }
         private IModelHolderFactoryLite ModelHolderFactory { get; }
 
-        public AzureSdkIssueLabelerService(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config)
+        public AzureSdkIssueLabelerService(ILabelerLite labeler, IModelHolderFactoryLite modelHolderFactory, IConfiguration config, ILogger<AzureSdkIssueLabelerService> logger)
         {
             ModelHolderFactory = modelHolderFactory;
             Labeler = labeler;
             Config = config;
+            _logger = logger;
 
             CommonModelRepositoryName = config["CommonModelRepositoryName"];
 
@@ -48,8 +50,8 @@ namespace IssueLabeler
             }
         }
 
-        [FunctionName("AzureSdkIssueLabelerService")]
-        public async Task<ActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "POST", Route = null)] HttpRequest request, ILogger log)
+        [Function("AzureSdkIssueLabelerService")]
+        public async Task<ActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "POST", Route = null)] HttpRequest request)
         {
             IssuePayload issue;
 
@@ -62,7 +64,7 @@ namespace IssueLabeler
             }
             catch (Exception ex)
             {
-                log.LogError($"Unable to deserialize payload:{ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
+                _logger.LogError($"Unable to deserialize payload:{ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
                 return new BadRequestResult();
             }
 
@@ -71,7 +73,7 @@ namespace IssueLabeler
             // If the model needed for this request hasn't been initialized, do so now.
             if (!InitializedRepositories.ContainsKey(predictionRepositoryName))
             {
-                log.LogInformation($"Models for {predictionRepositoryName} have not yet been initialized; loading prediction models.");
+                _logger.LogInformation($"Models for {predictionRepositoryName} have not yet been initialized; loading prediction models.");
 
                 try
                 {
@@ -83,17 +85,17 @@ namespace IssueLabeler
                 }
                 catch (Exception ex)
                 {
-                    log.LogError($"Error initializing the label prediction models for {predictionRepositoryName}: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
+                    _logger.LogError($"Error initializing the label prediction models for {predictionRepositoryName}: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
                     return EmptyResult;
                 }
                 finally
                 {
-                    log.LogInformation($"Model initialization is complete for {predictionRepositoryName}.");
+                    _logger.LogInformation($"Model initialization is complete for {predictionRepositoryName}.");
                 }
             }
 
             // Predict labels.
-            log.LogInformation($"Predicting labels for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.");
+            _logger.LogInformation($"Predicting labels for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.");
 
             try
             {
@@ -111,16 +113,16 @@ namespace IssueLabeler
 
                 if (predictions.Count < 2)
                 {
-                    log.LogInformation($"No labels were predicted for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.");
+                    _logger.LogInformation($"No labels were predicted for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.");
                     return EmptyResult;
                 }
 
-                log.LogInformation($"Labels were predicted for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.  Using: [{predictions[0]}, {predictions[1]}].");
+                _logger.LogInformation($"Labels were predicted for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}.  Using: [{predictions[0]}, {predictions[1]}].");
                 return new JsonResult(new PredictionResponse(predictions));
             }
             catch (Exception ex)
             {
-                log.LogError($"Error querying predictions for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
+                _logger.LogError($"Error querying predictions for {issue.RepositoryName} using the `{predictionRepositoryName}` model for issue #{issue.IssueNumber}: {ex.Message}{Environment.NewLine}\t{ex}{Environment.NewLine}");
                 return EmptyResult;
             }
         }

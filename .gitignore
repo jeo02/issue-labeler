@@ -300,3 +300,5 @@ __pycache__/
 # Deploy
 *Zip Deploy.json
 ServiceDependencies/
+
+/.vscode
