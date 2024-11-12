@@ -47,7 +47,7 @@ namespace IssueLabeler.Shared
             _blobContainerUri = new Uri(new Uri(configuration["BlobAccountUri"]), configuration["BlobContainerName"]);
 
             // the following four configuration values are per repo values.
-            var configSection = $"IssueModel:{repo}:{modelBlobConfigName}";
+            var configSection = $"IssueModel.{repo.Replace("-", "_")}.{modelBlobConfigName}";
             if (string.IsNullOrEmpty(configuration[configSection]))
             {
                 throw new ArgumentNullException($"repo: {repo}, missing config..");

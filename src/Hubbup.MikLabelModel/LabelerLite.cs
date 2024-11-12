@@ -58,7 +58,7 @@ namespace Hubbup.MikLabelModel
             // Determine the confidence threshold to use for filtering predictions
             float confidenceThreshold;
 
-            if (!float.TryParse(_config[$"IssueModel:{repositoryName}:BlobName:ConfidenceThreshold"], out confidenceThreshold))
+            if (!float.TryParse(_config["ConfidenceThreshold"], out confidenceThreshold))
             {
                 confidenceThreshold = defaultConfidenceThreshold;
                 _logger.LogInformation($"Prediction confidence default threshold of {confidenceThreshold} will be used as no value was configured. {repositoryOwnerName}/{repositoryName}#{issueNumber}");
@@ -94,7 +94,7 @@ namespace Hubbup.MikLabelModel
             List<LabelSuggestion> predictions = new List<LabelSuggestion>();
             List<IPredictor> predictors = new List<IPredictor>();
 
-            if (_config.TryGetConfigValue($"IssueModel:{repo}:BlobConfigNames", out var blobConfig))
+            if (_config.TryGetConfigValue($"IssueModel.{repo.Replace("-", "_")}.BlobConfigNames", out var blobConfig))
             {
                 var blobConfigs = blobConfig.Split(';', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var blobConfigName in blobConfigs)

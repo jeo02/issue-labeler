@@ -77,7 +77,7 @@ namespace IssueLabeler
 
                 try
                 {
-                    var allBlobConfigNames = Config[$"IssueModel:{predictionRepositoryName}:BlobConfigNames"].Split(';', StringSplitOptions.RemoveEmptyEntries);
+                    var allBlobConfigNames = Config[$"IssueModel.{predictionRepositoryName.Replace("-", "_")}.BlobConfigNames"].Split(';', StringSplitOptions.RemoveEmptyEntries);
 
                     // The model factory is thread-safe and will manage its own concurrency.
                     await ModelHolderFactory.CreateModelHolders(issue.RepositoryOwnerName, predictionRepositoryName, allBlobConfigNames).ConfigureAwait(false);

@@ -139,7 +139,7 @@ namespace Hubbup.MikLabelModel
         private bool IsConfigured(string repo)
         {
             // the following four configuration values are per repo values.
-            string configSection = $"IssueModel:{repo}:BlobConfigNames";
+            string configSection = $"IssueModel.{repo.Replace("-", "_")}.BlobConfigNames";
             if (string.IsNullOrEmpty(_configuration[configSection]))
             {
                 configSection = $"IssueModel:{repo}:BlobName";
